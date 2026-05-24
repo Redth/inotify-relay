@@ -57,6 +57,22 @@ else
     </div>
 
     <div class="ir-card">
+        <h2>Coalescing</h2>
+        <p class="ir-muted">
+            Hold incoming events for this many milliseconds; while events keep arriving the
+            timer resets. When it finally goes quiet, descendant paths are dropped if an
+            ancestor was also queued (so one Jellyfin scan, not fifty). Set to <code>0</code>
+            to fire every event immediately.
+        </p>
+        <div class="ir-form-grid">
+            <div>
+                <label>Coalesce window (ms)</label>
+                <input type="number" min="0" step="100" @bind="target.CoalesceMs" />
+            </div>
+        </div>
+    </div>
+
+    <div class="ir-card">
         <h2>Retry</h2>
         <div class="ir-form-row">
             <div>

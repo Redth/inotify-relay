@@ -38,5 +38,6 @@ public sealed class EfConfigStore(AppDbContext db) : IConfigStore
 
     private static TargetSnapshot Map(Data.Entities.TargetEntity t) => new(
         t.Id, t.Name, t.ProviderType, t.ProviderConfigJson, t.DefaultTemplateJson,
-        t.RetryMaxAttempts, t.RetryInitialBackoffMs, t.RetryBackoffMultiplier, t.RetryMaxBackoffMs);
+        t.RetryMaxAttempts, t.RetryInitialBackoffMs, t.RetryBackoffMultiplier, t.RetryMaxBackoffMs,
+        t.CoalesceMs);
 }

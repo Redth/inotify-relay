@@ -22,11 +22,24 @@ public sealed class TargetService(AppDbContext db, ProviderCatalog catalog)
             Name = name,
             ProviderType = providerType,
             ProviderConfigJson = JsonSerializer.Serialize(provider.CreateDefaultConfig()),
+            CoalesceMs = DefaultCoalesceMs(providerType),
         };
         db.Targets.Add(t);
         await db.SaveChangesAsync(ct);
         return t;
     }
+
+    /// <summary>
+    /// Sensible default coalescing window per provider. Webhooks fire one HTTP request
+    /// per event by default; media-server rescans batch — a torrent finishing or rsync
+    /// landing dozens of files inside a folder should produce one scan, not dozens.
+    /// </summary>
+    private static int DefaultCoalesceMs(string providerType) => providerType.ToLowerInvariant() switch
+    {
+        "jellyfin" => 5000,
+        "plex"     => 5000,
+        _          => 0,
+    };
 
     public async Task SaveAsync(TargetEntity target, CancellationToken ct = default)
     {

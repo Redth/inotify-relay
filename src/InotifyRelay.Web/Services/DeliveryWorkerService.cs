@@ -10,15 +10,27 @@ public sealed class DeliveryWorkerService(
     DeliveryQueue queue,
     IServiceScopeFactory scopes,
     ProviderCatalog providers,
+    TargetCoalescer coalescer,
     ILogger<DeliveryWorkerService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // simple single-worker pull; scale by spawning more workers in future
         try
         {
             await foreach (var work in queue.Reader.ReadAllAsync(stoppingToken))
-                _ = Task.Run(() => DeliverAsync(work, stoppingToken), stoppingToken);
+            {
+                using var scope = scopes.CreateScope();
+                var store = scope.ServiceProvider.GetRequiredService<IConfigStore>();
+                var target = await store.GetTargetAsync(work.Binding.TargetId, stoppingToken);
+                if (target is null) continue;
+
+                // Apply per-binding delay outside of the coalescer so it doesn't reset
+                // the coalesce timer mid-flow.
+                if (work.Binding.DelayMs > 0)
+                    await Task.Delay(work.Binding.DelayMs, stoppingToken);
+
+                coalescer.Enqueue(work, target.CoalesceMs, DeliverAsync, stoppingToken);
+            }
         }
         catch (OperationCanceledException) { }
     }
@@ -27,9 +39,6 @@ public sealed class DeliveryWorkerService(
     {
         try
         {
-            if (work.Binding.DelayMs > 0)
-                await Task.Delay(work.Binding.DelayMs, ct);
-
             using var scope = scopes.CreateScope();
             var store = scope.ServiceProvider.GetRequiredService<IConfigStore>();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

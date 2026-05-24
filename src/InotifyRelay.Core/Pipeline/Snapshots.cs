@@ -31,4 +31,5 @@ public sealed record TargetSnapshot(
     int RetryMaxAttempts,
     int RetryInitialBackoffMs,
     double RetryBackoffMultiplier,
-    int RetryMaxBackoffMs);
+    int RetryMaxBackoffMs,
+    int CoalesceMs);

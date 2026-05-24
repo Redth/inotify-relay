@@ -17,6 +17,13 @@ public class TargetEntity
     public double RetryBackoffMultiplier { get; set; } = 2.0;
     public int RetryMaxBackoffMs { get; set; } = 30_000;
 
+    /// <summary>
+    /// Sliding-window coalescing in milliseconds. While events arrive faster than
+    /// this interval, the buffer holds them. When the gap exceeds this value, the
+    /// surviving items are sent (after path-subsumption + dedupe).
+    /// </summary>
+    public int CoalesceMs { get; set; } = 0;
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

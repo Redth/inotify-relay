@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InotifyRelay.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260524174710_Initial")]
+    [Migration("20260524191819_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -349,6 +349,9 @@ namespace InotifyRelay.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("CoalesceMs")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");

@@ -26,6 +26,10 @@ P/Invoke layer that keeps **a single instance** for the entire process.
   creation), Windows fallback via `FileSystemWatcher`.
 - Rules with glob filtering, inotify event filtering, debounce, stabilization,
   and any number of targets per rule.
+- **Per-target coalescing with path subsumption** — a torrent finishing into
+  `/movies/Inception/` produces one Jellyfin/Plex scan, not fifty. Within the
+  sliding window, any descendant path whose ancestor was also queued is dropped;
+  an empty/full-scan event wins outright.
 - Built-in providers: **Webhook**, **Jellyfin**, **Plex**.
 - Plain templating with variable substitution + filters
   (`{path|replace:'/host':'/jellyfin'|lower}`).
@@ -92,10 +96,18 @@ A rule binds **sources** (paths + optional globs + recursion) to **targets**
 1. The event is filtered by the rule's enabled event types (Created,
    ClosedWrite, Deleted, Renamed, etc.).
 2. Glob filtering is applied if set.
-3. Debounce collapses repeats of the same `(rule, path, event)` within
-   `DebounceMs`.
-4. Each bound target is rendered using its template, with the configured delay
-   and retry policy.
+3. **Rule-level debounce** collapses repeats of the same `(rule, path, event)`
+   within `DebounceMs`.
+4. The event is queued for each bound target with the configured delay.
+5. **Target-level coalescing** (`CoalesceMs` per target) holds incoming
+   work in a sliding window — every new event resets the timer. When the
+   window goes quiet, the buffer is reduced by **path subsumption**: any
+   path whose ancestor is also queued is dropped (so `/movies/Inception/`
+   wins over `/movies/Inception/a.mkv`), and an empty/full-scan marker
+   subsumes everything. Defaults: webhook `0` (no coalescing), Jellyfin
+   and Plex `5000` ms.
+6. Each surviving item is rendered through its template and delivered,
+   with the target's retry policy.
 
 ### Variables
 

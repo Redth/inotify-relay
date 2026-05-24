@@ -89,6 +89,7 @@ builder.Services.AddInotifyRelayProviders();
 builder.Services.AddInotifyRelayWatcher();
 builder.Services.AddSingleton<IConfigChangeNotifier, ConfigChangeNotifier>();
 builder.Services.AddSingleton<DeliveryQueue>();
+builder.Services.AddSingleton<InotifyRelay.Web.Services.TargetCoalescer>();
 builder.Services.AddScoped<IConfigStore, EfConfigStore>();
 builder.Services.AddScoped<RuleService>();
 builder.Services.AddScoped<TargetService>();
