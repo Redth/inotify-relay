@@ -23,7 +23,7 @@ public sealed class TargetService(AppDbContext db, ProviderCatalog catalog)
         {
             Name = name,
             ProviderType = providerType,
-            ProviderConfigJson = JsonSerializer.Serialize(provider.CreateDefaultConfig()),
+            ProviderConfigJson = JsonFormat.Serialize(provider.CreateDefaultConfig()),
             CoalesceMs = DefaultCoalesceMs(providerType),
         };
         db.Targets.Add(t);
@@ -47,6 +47,9 @@ public sealed class TargetService(AppDbContext db, ProviderCatalog catalog)
     {
         if (await db.Targets.AnyAsync(t => t.Name == target.Name && t.Id != target.Id, ct))
             throw new DuplicateNameException($"A target named '{target.Name}' already exists.");
+        target.ProviderConfigJson = JsonFormat.Pretty(target.ProviderConfigJson);
+        target.PathMappingsJson  = JsonFormat.Pretty(target.PathMappingsJson);
+        target.DefaultTemplateJson = JsonFormat.Pretty(target.DefaultTemplateJson);
         target.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
     }

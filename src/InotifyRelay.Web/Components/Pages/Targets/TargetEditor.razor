@@ -159,15 +159,24 @@ else
     protected override async Task OnInitializedAsync()
     {
         target = await TargetSvc.GetAsync(Id);
-        if (target is not null && !string.IsNullOrWhiteSpace(target.PathMappingsJson))
+        if (target is not null)
         {
-            try
+            // Format-on-load so the editor always shows pretty JSON, even for rows
+            // written before format-on-save existed.
+            target.ProviderConfigJson  = InotifyRelay.Web.Services.JsonFormat.Pretty(target.ProviderConfigJson);
+            target.DefaultTemplateJson = InotifyRelay.Web.Services.JsonFormat.Pretty(target.DefaultTemplateJson);
+            target.PathMappingsJson    = InotifyRelay.Web.Services.JsonFormat.Pretty(target.PathMappingsJson);
+
+            if (!string.IsNullOrWhiteSpace(target.PathMappingsJson))
             {
-                var parsed = JsonSerializer.Deserialize<List<PathMapping>>(target.PathMappingsJson, JsonOpts);
-                if (parsed is not null)
-                    pathMappings = parsed.Select(m => new MappingRow { From = m.From, To = m.To }).ToList();
+                try
+                {
+                    var parsed = JsonSerializer.Deserialize<List<PathMapping>>(target.PathMappingsJson, JsonOpts);
+                    if (parsed is not null)
+                        pathMappings = parsed.Select(m => new MappingRow { From = m.From, To = m.To }).ToList();
+                }
+                catch { /* leave empty */ }
             }
-            catch { /* leave empty */ }
         }
     }
 
@@ -181,7 +190,7 @@ else
             .Where(m => !string.IsNullOrWhiteSpace(m.From) && !string.IsNullOrWhiteSpace(m.To))
             .Select(m => new PathMapping(m.From.Trim(), m.To.Trim()))
             .ToList();
-        target.PathMappingsJson = JsonSerializer.Serialize(clean);
+        target.PathMappingsJson = InotifyRelay.Web.Services.JsonFormat.Serialize(clean);
         try
         {
             await TargetSvc.SaveAsync(target);
