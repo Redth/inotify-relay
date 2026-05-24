@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY global.json ./
-COPY InotifyRelay.sln ./
+COPY InotifyRelay.slnx ./
 COPY src/ ./src/
 
 RUN dotnet restore src/InotifyRelay.Web/InotifyRelay.Web.csproj

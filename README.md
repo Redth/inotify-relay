@@ -44,6 +44,36 @@ P/Invoke layer that keeps **a single instance** for the entire process.
   Keycloak, Entra ID, Okta…) configured from the UI.
 - SQLite-backed, single-file persistence — everything lives under `/data`.
 
+## Container image
+
+Built and published to **GitHub Container Registry** on every push to `main`
+and every git tag. Multi-arch: `linux/amd64` + `linux/arm64`.
+
+Available tags:
+
+| Tag | When |
+|---|---|
+| `latest` | every push to `main` |
+| `edge` | every push to `main` (alias of latest, common convention) |
+| `sha-abc1234` | every push (pinnable by commit) |
+| `vX.Y.Z`, `vX.Y`, `vX` | each git tag matching `v*` (semver) |
+| `main`, `feature-foo` | every push to a branch |
+
+Pull it:
+
+```bash
+docker pull ghcr.io/redth/inotify-relay:latest
+# or pin to a specific build:
+docker pull ghcr.io/redth/inotify-relay:sha-abc1234
+```
+
+The image is signed with [build provenance](https://docs.github.com/en/actions/security-guides/using-artifact-attestations);
+verify with:
+
+```bash
+gh attestation verify oci://ghcr.io/redth/inotify-relay:latest --owner redth
+```
+
 ## Quick start (Docker Compose)
 
 ```bash

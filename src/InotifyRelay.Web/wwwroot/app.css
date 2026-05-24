@@ -17,6 +17,13 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; }
 h1 { font-size: 1.6rem; margin-bottom: 1.25rem; }
 h2 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
 
+/* Blazor's <FocusOnNavigate Selector="h1"> sets tabindex on the h1 and focuses
+   it on each route change for screen readers. Safari renders a visible focus
+   ring around the headline, which looks broken. Hide the ring; the focus
+   itself still happens so a11y announcement still works. */
+h1:focus, h2:focus, h3:focus { outline: none; }
+h1:focus-visible { outline: none; box-shadow: none; }
+
 /* ---- Shell ---- */
 .ir-shell {
     display: grid;
