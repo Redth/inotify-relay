@@ -87,11 +87,17 @@ else
                 <div class="ir-form-row" style="margin-bottom:0.5rem;align-items:end">
                     <div>
                         <label>From (path here)</label>
-                        <input @bind="m.From" placeholder="/watch/movies" />
+                        <div style="display:flex; gap:0.4rem">
+                            <input @bind="m.From" placeholder="/watch/movies" style="flex:1" />
+                            <button class="btn btn-secondary btn-sm" type="button" @onclick="() => OpenPickerForFrom(m)">Browse…</button>
+                        </div>
                     </div>
                     <div>
                         <label>To (path on target)</label>
-                        <input @bind="m.To" placeholder="/data/movies" />
+                        <div style="display:flex; gap:0.4rem">
+                            <input @bind="m.To" placeholder="/data/movies" style="flex:1" />
+                            <button class="btn btn-secondary btn-sm" type="button" @onclick="() => OpenPickerForTo(m)">Browse…</button>
+                        </div>
                     </div>
                 </div>
                 <div style="margin-bottom:0.75rem">
@@ -101,6 +107,8 @@ else
         }
         <button class="btn btn-secondary" @onclick="AddMapping">Add mapping</button>
     </div>
+
+    <InotifyRelay.Web.Components.Shared.FolderPicker @ref="_picker" OnPicked="ApplyPickedPath" />
 
     <div class="ir-card">
         <h2>Coalescing</h2>
@@ -149,6 +157,27 @@ else
     RelayResult? testResult;
     bool testing;
     string? saveError;
+
+    InotifyRelay.Web.Components.Shared.FolderPicker? _picker;
+    Action<string>? _pickerCallback;
+
+    void OpenPickerForFrom(MappingRow m)
+    {
+        _pickerCallback = path => m.From = path;
+        _picker?.Open(string.IsNullOrEmpty(m.From) ? null : m.From);
+    }
+
+    void OpenPickerForTo(MappingRow m)
+    {
+        _pickerCallback = path => m.To = path;
+        _picker?.Open(string.IsNullOrEmpty(m.To) ? null : m.To);
+    }
+
+    void ApplyPickedPath(string path)
+    {
+        _pickerCallback?.Invoke(path);
+        _pickerCallback = null;
+    }
 
     static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 

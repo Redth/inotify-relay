@@ -96,16 +96,20 @@
     private List<InotifyRelay.Web.Services.DirectoryBrowser.Entry> _entries = new();
     private IReadOnlyList<string>? _roots;
 
+    /// <summary>Opens the picker. Safe to call from a parent's event handler;
+    /// triggers a re-render of this component.</summary>
     public void Open(string? startPath = null)
     {
         _open = true;
         Go(startPath);
+        StateHasChanged();
     }
 
     private void Close()
     {
         _open = false;
         _error = null;
+        StateHasChanged();
     }
 
     private void Go(string? path)
@@ -122,6 +126,7 @@
     {
         if (string.IsNullOrEmpty(_currentPath)) return;
         _open = false;
+        StateHasChanged();
         await OnPicked.InvokeAsync(_currentPath);
     }
 
