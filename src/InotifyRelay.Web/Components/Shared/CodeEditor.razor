@@ -1,0 +1,50 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div id="@_id" style="height:@(Height)px; border:1px solid #1e2530; border-radius:6px; overflow:hidden"></div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Language { get; set; } = "json";
+    [Parameter] public int Height { get; set; } = 320;
+
+    private readonly string _id = "ed_" + Guid.NewGuid().ToString("N");
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<CodeEditor>? _ref;
+    private string? _lastValue;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/monaco.js");
+            _ref = DotNetObjectReference.Create(this);
+            _lastValue = Value;
+            await _module.InvokeVoidAsync("init", _id, Value ?? "", Language, _ref);
+        }
+        else if (_module is not null && _lastValue != Value)
+        {
+            _lastValue = Value;
+            await _module.InvokeVoidAsync("setValue", _id, Value ?? "");
+        }
+    }
+
+    [JSInvokable]
+    public Task OnChange(string val)
+    {
+        _lastValue = val;
+        Value = val;
+        return ValueChanged.InvokeAsync(val);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null) { await _module.InvokeVoidAsync("dispose", _id); await _module.DisposeAsync(); }
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        _ref?.Dispose();
+    }
+}

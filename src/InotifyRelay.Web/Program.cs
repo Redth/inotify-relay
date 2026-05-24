@@ -94,6 +94,7 @@ builder.Services.AddScoped<IConfigStore, EfConfigStore>();
 builder.Services.AddScoped<RuleService>();
 builder.Services.AddScoped<TargetService>();
 builder.Services.AddSingleton<ProviderCatalog>();
+builder.Services.AddSingleton<InotifyRelay.Web.Services.DirectoryBrowser>();
 
 // hosted services
 builder.Services.AddHostedService<WatcherSyncService>();

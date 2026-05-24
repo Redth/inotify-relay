@@ -16,6 +16,8 @@ public sealed class RuleService(AppDbContext db, IConfigChangeNotifier notifier)
 
     public async Task<RuleEntity> CreateAsync(string name, CancellationToken ct = default)
     {
+        if (await db.Rules.AnyAsync(x => x.Name == name, ct))
+            throw new DuplicateNameException($"A rule named '{name}' already exists.");
         var r = new RuleEntity { Name = name, EventMask = FileEventType.Created | FileEventType.ClosedWrite | FileEventType.MovedTo | FileEventType.Deleted };
         db.Rules.Add(r);
         await db.SaveChangesAsync(ct);
@@ -25,6 +27,8 @@ public sealed class RuleService(AppDbContext db, IConfigChangeNotifier notifier)
 
     public async Task SaveAsync(RuleEntity rule, CancellationToken ct = default)
     {
+        if (await db.Rules.AnyAsync(x => x.Name == rule.Name && x.Id != rule.Id, ct))
+            throw new DuplicateNameException($"A rule named '{rule.Name}' already exists.");
         rule.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         notifier.RaiseRulesChanged();

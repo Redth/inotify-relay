@@ -17,6 +17,8 @@ public sealed class TargetService(AppDbContext db, ProviderCatalog catalog)
     public async Task<TargetEntity> CreateAsync(string name, string providerType, CancellationToken ct = default)
     {
         var provider = catalog.Get(providerType) ?? throw new InvalidOperationException($"Unknown provider {providerType}");
+        if (await db.Targets.AnyAsync(t => t.Name == name, ct))
+            throw new DuplicateNameException($"A target named '{name}' already exists.");
         var t = new TargetEntity
         {
             Name = name,
@@ -43,6 +45,8 @@ public sealed class TargetService(AppDbContext db, ProviderCatalog catalog)
 
     public async Task SaveAsync(TargetEntity target, CancellationToken ct = default)
     {
+        if (await db.Targets.AnyAsync(t => t.Name == target.Name && t.Id != target.Id, ct))
+            throw new DuplicateNameException($"A target named '{target.Name}' already exists.");
         target.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
     }

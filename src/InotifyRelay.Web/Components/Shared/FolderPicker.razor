@@ -1,0 +1,142 @@
+@inject InotifyRelay.Web.Services.DirectoryBrowser Browser
+
+@if (_open)
+{
+    <div class="ir-modal-backdrop" @onclick="Close">
+        <div class="ir-modal" @onclick:stopPropagation>
+            <div class="ir-modal-header">
+                <strong>Pick a folder</strong>
+                <button class="btn btn-sm btn-secondary" @onclick="Close">Close</button>
+            </div>
+
+            <div class="ir-breadcrumbs">
+                @if (_roots is { Count: > 0 })
+                {
+                    <button class="btn btn-sm btn-secondary" @onclick="() => Go(null)">Drives</button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-secondary" @onclick='() => Go("/")'>/</button>
+                }
+                @foreach (var (label, target) in BuildCrumbs(_currentPath))
+                {
+                    <span class="ir-crumb-sep">/</span>
+                    <button class="btn btn-sm btn-secondary" @onclick="() => Go(target)">@label</button>
+                }
+            </div>
+
+            <div class="ir-current-path">
+                <code>@(_currentPath ?? "(drives)")</code>
+            </div>
+
+            <div class="ir-folder-list">
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="alert-error">@_error</div>
+                }
+                else if (_roots is { Count: > 0 })
+                {
+                    @foreach (var r in _roots)
+                    {
+                        <button class="ir-folder-row" @onclick="() => Go(r)">
+                            <span class="ir-folder-icon">🗄️</span> @r
+                        </button>
+                    }
+                }
+                else if (_entries.Count == 0)
+                {
+                    @if (_parent is not null)
+                    {
+                        <button class="ir-folder-row" @onclick="() => Go(_parent)">
+                            <span class="ir-folder-icon">⬆️</span> ..
+                        </button>
+                    }
+                    <p class="ir-muted"><em>(no subfolders)</em></p>
+                }
+                else
+                {
+                    @if (_parent is not null)
+                    {
+                        <button class="ir-folder-row" @onclick="() => Go(_parent)">
+                            <span class="ir-folder-icon">⬆️</span> ..
+                        </button>
+                    }
+                    @foreach (var e in _entries)
+                    {
+                        <button class="ir-folder-row" @onclick="() => Go(e.Path)">
+                            <span class="ir-folder-icon">📁</span> @e.Name
+                        </button>
+                    }
+                }
+            </div>
+
+            <div class="ir-modal-footer">
+                <div class="ir-muted" style="font-size:0.82rem; max-width:60%">
+                    Browses the host filesystem the inotify-relay process can see. Inside Docker
+                    this is whatever you mounted into the container (often <code>/watch/&hellip;</code>).
+                </div>
+                <div style="margin-left:auto; display:flex; gap:0.5rem">
+                    <button class="btn btn-secondary" @onclick="Close">Cancel</button>
+                    <button class="btn btn-primary" @onclick="Select" disabled="@(string.IsNullOrEmpty(_currentPath))">
+                        Use <code style="margin-left:0.4rem">@_currentPath</code>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback<string> OnPicked { get; set; }
+
+    private bool _open;
+    private string? _error;
+    private string? _currentPath;
+    private string? _parent;
+    private List<InotifyRelay.Web.Services.DirectoryBrowser.Entry> _entries = new();
+    private IReadOnlyList<string>? _roots;
+
+    public void Open(string? startPath = null)
+    {
+        _open = true;
+        Go(startPath);
+    }
+
+    private void Close()
+    {
+        _open = false;
+        _error = null;
+    }
+
+    private void Go(string? path)
+    {
+        var r = Browser.Browse(path);
+        _currentPath = r.Path;
+        _parent = r.Parent;
+        _entries = r.Entries.ToList();
+        _roots = r.Roots;
+        _error = r.Error;
+    }
+
+    private async Task Select()
+    {
+        if (string.IsNullOrEmpty(_currentPath)) return;
+        _open = false;
+        await OnPicked.InvokeAsync(_currentPath);
+    }
+
+    private static IEnumerable<(string Label, string Path)> BuildCrumbs(string? full)
+    {
+        if (string.IsNullOrEmpty(full) || full == "/") yield break;
+        var sep = full.Contains('\\') ? '\\' : '/';
+        var parts = full.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+        var cur = "";
+        for (var i = 0; i < parts.Length; i++)
+        {
+            cur = cur.Length == 0
+                ? (full.StartsWith("/") ? "/" + parts[i] : parts[i])
+                : cur + sep + parts[i];
+            yield return (parts[i], cur);
+        }
+    }
+}

@@ -15,6 +15,11 @@
     </form>
 </div>
 
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert-error" style="margin-top:1rem">@error</div>
+}
+
 <div class="ir-card" style="margin-top:1rem">
     @if (rules.Count == 0)
     {
@@ -52,6 +57,7 @@
 @code {
     List<InotifyRelay.Data.Entities.RuleEntity> rules = new();
     string newName = "";
+    string? error;
 
     protected override async Task OnInitializedAsync()
     {
@@ -60,9 +66,17 @@
 
     async Task CreateRule()
     {
+        error = null;
         if (string.IsNullOrWhiteSpace(newName)) return;
-        var r = await RuleSvc.CreateAsync(newName.Trim());
-        Nav.NavigateTo($"/rules/{r.Id}");
+        try
+        {
+            var r = await RuleSvc.CreateAsync(newName.Trim());
+            Nav.NavigateTo($"/rules/{r.Id}");
+        }
+        catch (InotifyRelay.Web.Services.DuplicateNameException ex)
+        {
+            error = ex.Message;
+        }
     }
 
     async Task ToggleAsync(Guid id, bool enabled)

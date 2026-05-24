@@ -23,6 +23,11 @@ else
         </div>
     </div>
 
+    @if (!string.IsNullOrEmpty(saveError))
+    {
+        <div class="alert-error" style="margin-top:1rem">@saveError</div>
+    }
+
     <div class="ir-card" style="margin-top:1rem">
         <h2>General</h2>
         <div class="ir-form-grid">
@@ -53,19 +58,44 @@ else
 
     <div class="ir-card">
         <h2>Event filters</h2>
-        <div class="ir-muted" style="margin-bottom:0.5rem">Which inotify events trigger this rule?</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.4rem">
-            @foreach (var f in eventFlags)
-            {
-                <label style="display:flex;align-items:center;gap:0.4rem">
-                    <input type="checkbox"
-                           checked="@((rule.EventMask & f) != 0)"
-                           @onchange="e => ToggleFlag(f, (bool)e.Value!)"
-                           style="width:auto" />
-                    @f
-                </label>
-            }
+        <div class="ir-muted" style="margin-bottom:0.75rem">
+            Pick the events that should fire this rule. Inotify emits several events per file
+            write — the typical order is shown below. For media-server scans the most reliable
+            combo is <strong>ClosedWrite</strong> (a writer just finished) plus <strong>Renamed</strong> /
+            <strong>MovedTo</strong> (rsync/torrent finalize). <strong>Modified</strong> fires many times per
+            write and is usually noisy.
         </div>
+
+        @foreach (var group in eventGroups)
+        {
+            <div style="margin-top:0.75rem">
+                <div style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em; color:#8a97a6; margin-bottom:0.5rem">
+                    @group.Title <span style="text-transform:none; letter-spacing:0; color:#6a7989">— @group.Subtitle</span>
+                </div>
+                <div style="display:grid; gap:0.5rem">
+                    @foreach (var ev in group.Events)
+                    {
+                        var enabled = (rule.EventMask & ev.Type) != 0;
+                        <label style="display:grid; grid-template-columns:auto 1fr; gap:0.6rem; align-items:start; padding:0.5rem 0.65rem; border:1px solid #1e2530; border-radius:6px; background:@(enabled ? "#161e2c" : "transparent"); cursor:pointer">
+                            <input type="checkbox"
+                                   checked="@enabled"
+                                   @onchange="e => ToggleFlag(ev.Type, (bool)e.Value!)"
+                                   style="width:auto; margin-top:0.15rem" />
+                            <div>
+                                <div style="font-weight:500">
+                                    @ev.Label
+                                    @if (ev.Recommended)
+                                    {
+                                        <span class="ir-badge ok" style="margin-left:0.5rem; font-size:0.7rem">recommended</span>
+                                    }
+                                </div>
+                                <div class="ir-muted" style="font-size:0.82rem; margin-top:0.2rem">@ev.Description</div>
+                            </div>
+                        </label>
+                    }
+                </div>
+            </div>
+        }
     </div>
 
     <div class="ir-card">
@@ -75,7 +105,10 @@ else
             <div class="ir-form-row" style="margin-bottom:0.5rem">
                 <div>
                     <label>Path</label>
-                    <input @bind="src.Path" placeholder="/watch/movies" />
+                    <div style="display:flex; gap:0.4rem">
+                        <input @bind="src.Path" placeholder="/watch/movies" style="flex:1" />
+                        <button class="btn btn-secondary btn-sm" type="button" @onclick="() => OpenPickerFor(src)">Browse…</button>
+                    </div>
                 </div>
                 <div>
                     <label>Glob pattern (optional)</label>
@@ -92,6 +125,8 @@ else
         }
         <button class="btn btn-secondary" @onclick="AddSource">Add source</button>
     </div>
+
+    <InotifyRelay.Web.Components.Shared.FolderPicker @ref="_picker" OnPicked="ApplyPickedPath" />
 
     <div class="ir-card">
         <h2>Targets</h2>
@@ -138,13 +173,68 @@ else
     RuleEntity? rule;
     List<TargetEntity> targets = new();
     string addTargetId = "";
+    string? saveError;
 
-    static readonly FileEventType[] eventFlags = new[]
+    InotifyRelay.Web.Components.Shared.FolderPicker? _picker;
+    SourceEntity? _pickerTarget;
+
+    void OpenPickerFor(SourceEntity src)
     {
-        FileEventType.Created, FileEventType.Modified, FileEventType.ClosedWrite,
-        FileEventType.Deleted, FileEventType.Renamed, FileEventType.MovedFrom,
-        FileEventType.MovedTo, FileEventType.Attrib, FileEventType.DirCreated,
-        FileEventType.DirDeleted,
+        _pickerTarget = src;
+        _picker?.Open(string.IsNullOrEmpty(src.Path) ? null : src.Path);
+    }
+
+    void ApplyPickedPath(string path)
+    {
+        if (_pickerTarget is not null) _pickerTarget.Path = path;
+        _pickerTarget = null;
+    }
+
+    record EventOption(FileEventType Type, string Label, string Description, bool Recommended = false);
+    record EventGroup(string Title, string Subtitle, EventOption[] Events);
+
+    static readonly EventGroup[] eventGroups = new[]
+    {
+        new EventGroup("File lifecycle", "typical order for a local write",
+            new[]
+            {
+                new EventOption(FileEventType.Created, "Created",
+                    "File appears on disk. Usually empty at this point if a writer is creating it — content arrives later."),
+                new EventOption(FileEventType.Modified, "Modified",
+                    "File content changed. Fires repeatedly during a write (potentially hundreds of times). Noisy — prefer ClosedWrite unless you specifically need write progress."),
+                new EventOption(FileEventType.ClosedWrite, "ClosedWrite",
+                    "A writer that had the file open for writing has closed it. The most reliable \"file is fully written\" signal for local copies, downloads-in-place, and saves.",
+                    Recommended: true),
+                new EventOption(FileEventType.Deleted, "Deleted",
+                    "File was removed from a watched path."),
+            }),
+        new EventGroup("Rename / move", "rsync, torrent clients, atomic uploads",
+            new[]
+            {
+                new EventOption(FileEventType.Renamed, "Renamed",
+                    "MovedFrom + MovedTo pair within the same source — emitted as one event when both sides arrive within ~200 ms. Recommended for rsync (which writes to a temp file then renames into place) and torrent clients that finalize via rename.",
+                    Recommended: true),
+                new EventOption(FileEventType.MovedTo, "MovedTo",
+                    "File appeared via rename / move from outside the watched tree (or the matching MovedFrom didn't arrive in time)."),
+                new EventOption(FileEventType.MovedFrom, "MovedFrom",
+                    "File disappeared via rename / move out of the watched tree (standalone half of a rename)."),
+            }),
+        new EventGroup("Directory", "applies to subdirectories under a recursive source",
+            new[]
+            {
+                new EventOption(FileEventType.DirCreated, "DirCreated",
+                    "A new subdirectory appeared. The watcher automatically begins watching it too."),
+                new EventOption(FileEventType.DirDeleted, "DirDeleted",
+                    "A subdirectory was removed."),
+            }),
+        new EventGroup("Other", "metadata + health",
+            new[]
+            {
+                new EventOption(FileEventType.Attrib, "Attrib",
+                    "Permissions, ownership, or timestamps changed. No content change."),
+                new EventOption(FileEventType.Overflow, "Overflow",
+                    "The kernel inotify queue overflowed — events were dropped. Emitted as one synthetic event so you can trigger a fresh scan."),
+            }),
     };
 
     protected override async Task OnInitializedAsync()
@@ -174,7 +264,15 @@ else
     async Task SaveAsync()
     {
         if (rule is null) return;
-        await RuleSvc.SaveAsync(rule);
-        Nav.NavigateTo("/rules");
+        saveError = null;
+        try
+        {
+            await RuleSvc.SaveAsync(rule);
+            Nav.NavigateTo("/rules");
+        }
+        catch (InotifyRelay.Web.Services.DuplicateNameException ex)
+        {
+            saveError = ex.Message;
+        }
     }
 }

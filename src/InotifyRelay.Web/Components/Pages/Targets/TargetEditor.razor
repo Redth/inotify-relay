@@ -25,6 +25,11 @@ else
         </div>
     </div>
 
+    @if (!string.IsNullOrEmpty(saveError))
+    {
+        <div class="alert-error" style="margin-top:1rem">@saveError</div>
+    }
+
     @if (testResult is not null)
     {
         <div class="ir-card" style="margin-top:1rem">
@@ -55,7 +60,10 @@ else
     <div class="ir-card">
         <h2>Provider config</h2>
         <p class="ir-muted">JSON shape depends on provider type. The default is pre-filled when the target is created.</p>
-        <textarea @bind="target.ProviderConfigJson" spellcheck="false" rows="12"></textarea>
+        <InotifyRelay.Web.Components.Shared.CodeEditor
+            @bind-Value="target.ProviderConfigJson"
+            Language="json"
+            Height="360" />
     </div>
 
     <div class="ir-card">
@@ -140,6 +148,7 @@ else
     TargetEntity? target;
     RelayResult? testResult;
     bool testing;
+    string? saveError;
 
     static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 
@@ -167,13 +176,21 @@ else
     async Task SaveAsync()
     {
         if (target is null) return;
+        saveError = null;
         var clean = pathMappings
             .Where(m => !string.IsNullOrWhiteSpace(m.From) && !string.IsNullOrWhiteSpace(m.To))
             .Select(m => new PathMapping(m.From.Trim(), m.To.Trim()))
             .ToList();
         target.PathMappingsJson = JsonSerializer.Serialize(clean);
-        await TargetSvc.SaveAsync(target);
-        Nav.NavigateTo("/targets");
+        try
+        {
+            await TargetSvc.SaveAsync(target);
+            Nav.NavigateTo("/targets");
+        }
+        catch (InotifyRelay.Web.Services.DuplicateNameException ex)
+        {
+            saveError = ex.Message;
+        }
     }
 
     async Task TestAsync()

@@ -27,6 +27,11 @@
     </form>
 </div>
 
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert-error" style="margin-top:1rem">@error</div>
+}
+
 <div class="ir-card" style="margin-top:1rem">
     @if (targets.Count == 0)
     {
@@ -56,14 +61,23 @@
     List<InotifyRelay.Data.Entities.TargetEntity> targets = new();
     string newName = "";
     string newProvider = "webhook";
+    string? error;
 
     protected override async Task OnInitializedAsync() => targets = await TargetSvc.ListAsync();
 
     async Task CreateTarget()
     {
+        error = null;
         if (string.IsNullOrWhiteSpace(newName)) return;
-        var t = await TargetSvc.CreateAsync(newName.Trim(), newProvider);
-        Nav.NavigateTo($"/targets/{t.Id}");
+        try
+        {
+            var t = await TargetSvc.CreateAsync(newName.Trim(), newProvider);
+            Nav.NavigateTo($"/targets/{t.Id}");
+        }
+        catch (InotifyRelay.Web.Services.DuplicateNameException ex)
+        {
+            error = ex.Message;
+        }
     }
 
     async Task DeleteAsync(Guid id)
