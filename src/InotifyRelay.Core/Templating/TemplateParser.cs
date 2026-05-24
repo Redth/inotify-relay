@@ -5,7 +5,13 @@ namespace InotifyRelay.Core.Templating;
 //   placeholder := '{' name ('|' filter)* '}'
 //   filter := name (':' arg)*
 //   arg := single-quoted string  (e.g. 'foo' or 'with \\' escape')  OR bareword (digits / identifier)
-//   '{{' and '}}' are literal braces.
+//
+// JSON-friendly rules:
+//   '{{' and '}}' are explicit literal braces.
+//   '{' followed by anything that ISN'T an identifier-start (letter or '_') is
+//   treated as a literal '{'. So a JSON body like {"event":"{event}"} works
+//   without any escaping — the outer braces are literal, {event} is a placeholder.
+//   Lone '}' outside a placeholder is also literal for symmetry.
 internal static class TemplateParser
 {
     public static Template Parse(string source)
@@ -29,14 +35,23 @@ internal static class TemplateParser
             if (c == '{')
             {
                 if (i + 1 < source.Length && source[i + 1] == '{') { lit.Append('{'); i += 2; continue; }
-                FlushLiteral();
-                i++;
-                tokens.Add(ParsePlaceholder(source, ref i));
+                if (i + 1 < source.Length && IsIdentStart(source[i + 1]))
+                {
+                    FlushLiteral();
+                    i++;
+                    tokens.Add(ParsePlaceholder(source, ref i));
+                }
+                else
+                {
+                    lit.Append('{');
+                    i++;
+                }
             }
             else if (c == '}')
             {
                 if (i + 1 < source.Length && source[i + 1] == '}') { lit.Append('}'); i += 2; continue; }
-                throw new TemplateException($"Unexpected '}}' at position {i}");
+                lit.Append('}');
+                i++;
             }
             else
             {
@@ -47,6 +62,8 @@ internal static class TemplateParser
         FlushLiteral();
         return new Template(source, tokens);
     }
+
+    private static bool IsIdentStart(char c) => char.IsLetter(c) || c == '_';
 
     private static VariableToken ParsePlaceholder(string s, ref int i)
     {

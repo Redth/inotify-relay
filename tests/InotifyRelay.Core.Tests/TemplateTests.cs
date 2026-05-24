@@ -63,6 +63,23 @@ public class TemplateTests
     }
 
     [Fact]
+    public void Json_literal_braces_are_not_placeholders()
+    {
+        // The default webhook body template is JSON. The outer { and } must be
+        // literal, while {event} and {path} interpolate.
+        var t = Template.Parse(@"{""event"":""{event}"",""path"":""{path}""}");
+        var ctx = new TemplateContext().Set("event", "ClosedWrite").Set("path", "/x/a.mkv");
+        Assert.Equal(@"{""event"":""ClosedWrite"",""path"":""/x/a.mkv""}", t.Render(ctx, Filters));
+    }
+
+    [Fact]
+    public void Lone_closing_brace_is_literal()
+    {
+        var t = Template.Parse("a } b");
+        Assert.Equal("a } b", t.Render(new TemplateContext(), Filters));
+    }
+
+    [Fact]
     public void Unknown_filter_throws_at_render()
     {
         var t = Template.Parse("{x|nope}");

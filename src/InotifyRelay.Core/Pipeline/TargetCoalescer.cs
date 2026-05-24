@@ -1,7 +1,8 @@
 using System.Collections.Concurrent;
-using InotifyRelay.Core.Pipeline;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
-namespace InotifyRelay.Web.Services;
+namespace InotifyRelay.Core.Pipeline;
 
 /// <summary>
 /// Per-target sliding-window coalescer. Buffers <see cref="DeliveryWork"/> for each
@@ -11,10 +12,11 @@ namespace InotifyRelay.Web.Services;
 /// </summary>
 public sealed class TargetCoalescer : IAsyncDisposable
 {
-    private readonly ILogger<TargetCoalescer> _logger;
+    private readonly ILogger _logger;
     private readonly ConcurrentDictionary<Guid, Batch> _batches = new();
 
-    public TargetCoalescer(ILogger<TargetCoalescer> logger) => _logger = logger;
+    public TargetCoalescer(ILogger<TargetCoalescer>? logger = null)
+        => _logger = logger ?? NullLogger<TargetCoalescer>.Instance;
 
     public delegate Task DeliverFn(DeliveryWork work, CancellationToken ct);
 
