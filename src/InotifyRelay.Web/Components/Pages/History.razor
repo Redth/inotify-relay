@@ -1,0 +1,61 @@
+@page "/history"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using InotifyRelay.Data
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+
+<PageTitle>History</PageTitle>
+
+<h1>History</h1>
+
+<div class="ir-card">
+    <div style="display:flex;gap:0.75rem;align-items:end;margin-bottom:0.5rem">
+        <div>
+            <label class="ir-muted" style="font-size:0.78rem;display:block">Filter</label>
+            <select @bind="filter" style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.45rem 0.65rem">
+                <option value="all">All</option>
+                <option value="failed">Failed only</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" @onclick="LoadAsync">Refresh</button>
+    </div>
+
+    <table class="ir-table">
+        <thead><tr><th>Time</th><th>Target</th><th>Provider</th><th>Status</th><th>Path</th><th>Error</th></tr></thead>
+        <tbody>
+            @foreach (var row in rows)
+            {
+                <tr>
+                    <td>@row.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@row.TargetName</td>
+                    <td>@row.ProviderType</td>
+                    <td>
+                        <span class="ir-badge @(row.Success ? "ok" : "bad")">
+                            @(row.Success ? "OK" : "FAIL") @row.StatusCode
+                        </span>
+                    </td>
+                    <td><code>@(eventPaths.GetValueOrDefault(row.EventLogId ?? -1, ""))</code></td>
+                    <td><span class="ir-muted">@row.Error</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    string filter = "all";
+    List<InotifyRelay.Data.Entities.DeliveryLogEntity> rows = new();
+    Dictionary<long, string> eventPaths = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    async Task LoadAsync()
+    {
+        var q = Db.DeliveryLogs.AsQueryable();
+        if (filter == "failed") q = q.Where(d => !d.Success);
+        rows = await q.OrderByDescending(d => d.Timestamp).Take(200).ToListAsync();
+        var ids = rows.Where(r => r.EventLogId.HasValue).Select(r => r.EventLogId!.Value).Distinct().ToList();
+        eventPaths = await Db.EventLogs.Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.Path);
+    }
+}

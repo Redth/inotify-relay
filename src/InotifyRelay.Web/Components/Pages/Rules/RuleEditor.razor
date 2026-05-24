@@ -1,0 +1,180 @@
+@page "/rules/{Id:guid}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using InotifyRelay.Core.Events
+@using InotifyRelay.Data.Entities
+@inject InotifyRelay.Web.Services.RuleService RuleSvc
+@inject InotifyRelay.Web.Services.TargetService TargetSvc
+@inject NavigationManager Nav
+
+<PageTitle>Edit rule</PageTitle>
+
+@if (rule is null)
+{
+    <p class="ir-muted">Loading…</p>
+}
+else
+{
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
+        <h1 style="margin:0">@rule.Name</h1>
+        <div>
+            <button class="btn btn-primary" @onclick="SaveAsync">Save</button>
+            <a class="btn btn-secondary" href="/rules">Back</a>
+        </div>
+    </div>
+
+    <div class="ir-card" style="margin-top:1rem">
+        <h2>General</h2>
+        <div class="ir-form-grid">
+            <div>
+                <label>Name</label>
+                <input @bind="rule.Name" />
+            </div>
+            <div>
+                <label>Description</label>
+                <input @bind="rule.Description" />
+            </div>
+            <div class="ir-form-row">
+                <div>
+                    <label>Debounce (ms)</label>
+                    <input type="number" min="0" @bind="rule.DebounceMs" />
+                </div>
+                <div>
+                    <label>Stabilization (ms)</label>
+                    <input type="number" min="0" @bind="rule.StabilizationMs" />
+                </div>
+            </div>
+            <label style="display:flex;align-items:center;gap:0.4rem">
+                <input type="checkbox" @bind="rule.Enabled" style="width:auto" />
+                Enabled
+            </label>
+        </div>
+    </div>
+
+    <div class="ir-card">
+        <h2>Event filters</h2>
+        <div class="ir-muted" style="margin-bottom:0.5rem">Which inotify events trigger this rule?</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.4rem">
+            @foreach (var f in eventFlags)
+            {
+                <label style="display:flex;align-items:center;gap:0.4rem">
+                    <input type="checkbox"
+                           checked="@((rule.EventMask & f) != 0)"
+                           @onchange="e => ToggleFlag(f, (bool)e.Value!)"
+                           style="width:auto" />
+                    @f
+                </label>
+            }
+        </div>
+    </div>
+
+    <div class="ir-card">
+        <h2>Sources</h2>
+        @foreach (var src in rule.Sources)
+        {
+            <div class="ir-form-row" style="margin-bottom:0.5rem">
+                <div>
+                    <label>Path</label>
+                    <input @bind="src.Path" placeholder="/watch/movies" />
+                </div>
+                <div>
+                    <label>Glob pattern (optional)</label>
+                    <input @bind="src.GlobPattern" placeholder="**/*.mkv" />
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem">
+                <label style="display:flex;align-items:center;gap:0.4rem">
+                    <input type="checkbox" @bind="src.Recursive" style="width:auto" /> Recursive
+                </label>
+                <button class="btn btn-sm btn-danger" @onclick="() => rule.Sources.Remove(src)">Remove</button>
+            </div>
+            <hr style="border-color:#1e2530"/>
+        }
+        <button class="btn btn-secondary" @onclick="AddSource">Add source</button>
+    </div>
+
+    <div class="ir-card">
+        <h2>Targets</h2>
+        @if (rule.TargetBindings.Count == 0)
+        {
+            <p class="ir-muted">No targets bound yet.</p>
+        }
+        else
+        {
+            <table class="ir-table">
+                <thead><tr><th>Target</th><th>Delay (ms)</th><th>Enabled</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var b in rule.TargetBindings)
+                {
+                    <tr>
+                        <td>@(targets.FirstOrDefault(t => t.Id == b.TargetId)?.Name ?? b.TargetId.ToString())</td>
+                        <td><input type="number" @bind="b.DelayMs" style="width:8em" /></td>
+                        <td><input type="checkbox" @bind="b.Enabled" style="width:auto" /></td>
+                        <td><button class="btn btn-sm btn-danger" @onclick="() => rule.TargetBindings.Remove(b)">Remove</button></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+
+        <div style="display:flex;gap:0.5rem;margin-top:0.75rem;align-items:end">
+            <div style="flex:1">
+                <label>Add target</label>
+                <select @bind="addTargetId" style="width:100%;background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                    <option value="">(choose)</option>
+                    @foreach (var t in targets.Where(t => !rule.TargetBindings.Any(b => b.TargetId == t.Id)))
+                    {
+                        <option value="@t.Id">@t.Name (@t.ProviderType)</option>
+                    }
+                </select>
+            </div>
+            <button class="btn btn-secondary" @onclick="AddBinding" disabled="@string.IsNullOrEmpty(addTargetId)">Bind</button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    RuleEntity? rule;
+    List<TargetEntity> targets = new();
+    string addTargetId = "";
+
+    static readonly FileEventType[] eventFlags = new[]
+    {
+        FileEventType.Created, FileEventType.Modified, FileEventType.ClosedWrite,
+        FileEventType.Deleted, FileEventType.Renamed, FileEventType.MovedFrom,
+        FileEventType.MovedTo, FileEventType.Attrib, FileEventType.DirCreated,
+        FileEventType.DirDeleted,
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        rule = await RuleSvc.GetAsync(Id);
+        targets = await TargetSvc.ListAsync();
+    }
+
+    void ToggleFlag(FileEventType f, bool on)
+    {
+        if (rule is null) return;
+        rule.EventMask = on ? (rule.EventMask | f) : (rule.EventMask & ~f);
+    }
+
+    void AddSource()
+    {
+        rule!.Sources.Add(new SourceEntity { RuleId = rule.Id, Path = "" });
+    }
+
+    void AddBinding()
+    {
+        if (rule is null || !Guid.TryParse(addTargetId, out var tid)) return;
+        rule.TargetBindings.Add(new TargetBindingEntity { RuleId = rule.Id, TargetId = tid, Enabled = true });
+        addTargetId = "";
+    }
+
+    async Task SaveAsync()
+    {
+        if (rule is null) return;
+        await RuleSvc.SaveAsync(rule);
+        Nav.NavigateTo("/rules");
+    }
+}

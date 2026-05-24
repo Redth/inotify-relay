@@ -1,0 +1,74 @@
+@page "/settings/auth"
+@attribute [Authorize(Policy = "Admin")]
+@rendermode InteractiveServer
+@using InotifyRelay.Data
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@inject InotifyRelay.Web.Infrastructure.DynamicOidcSchemeProvider OidcApply
+
+<PageTitle>Authentication</PageTitle>
+
+<h1>Authentication</h1>
+
+@if (settings is null)
+{
+    <p class="ir-muted">Loading…</p>
+}
+else
+{
+    <div class="ir-card">
+        <h2>Local accounts</h2>
+        <label style="display:flex;align-items:center;gap:0.4rem">
+            <input type="checkbox" @bind="settings.AllowLocalLogin" style="width:auto" />
+            Allow sign-in with local username + password
+        </label>
+    </div>
+
+    <div class="ir-card">
+        <h2>OIDC (Single Sign-On)</h2>
+        <p class="ir-muted">Configure once your IdP (Authentik, Keycloak, Okta, Entra ID, etc.) has issued a client.</p>
+
+        <label style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.75rem">
+            <input type="checkbox" @bind="settings.OidcEnabled" style="width:auto" />
+            Enable OIDC sign-in
+        </label>
+
+        <div class="ir-form-grid">
+            <div><label>Authority (issuer URL)</label><input @bind="settings.OidcAuthority" placeholder="https://idp.example.com/realms/main" /></div>
+            <div class="ir-form-row">
+                <div><label>Client ID</label><input @bind="settings.OidcClientId" /></div>
+                <div><label>Client secret</label><input @bind="settings.OidcClientSecret" type="password" /></div>
+            </div>
+            <div><label>Scopes (space-separated)</label><input @bind="settings.OidcScopes" /></div>
+            <div class="ir-form-row">
+                <div><label>Admin role claim</label><input @bind="settings.OidcAdminRoleClaim" placeholder="groups" /></div>
+                <div><label>Admin role value</label><input @bind="settings.OidcAdminRoleValue" placeholder="inotify-admins" /></div>
+            </div>
+        </div>
+        <p class="ir-muted" style="margin-top:0.75rem;font-size:0.85rem">
+            Callback URLs to register with your IdP: <code>/signin-oidc</code> and <code>/signout-callback-oidc</code>
+        </p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="SaveAsync">Save</button>
+    @if (saved) { <span class="ir-badge ok" style="margin-left:0.5rem">Saved</span> }
+}
+
+@code {
+    InotifyRelay.Data.Entities.AuthSettingsEntity? settings;
+    bool saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = await Db.AuthSettings.FirstOrDefaultAsync(x => x.Id == 1);
+    }
+
+    async Task SaveAsync()
+    {
+        if (settings is null) return;
+        settings.UpdatedAt = DateTimeOffset.UtcNow;
+        await Db.SaveChangesAsync();
+        await OidcApply.ApplyAsync(CancellationToken.None);
+        saved = true;
+    }
+}

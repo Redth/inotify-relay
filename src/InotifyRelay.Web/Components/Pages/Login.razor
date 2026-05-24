@@ -1,0 +1,65 @@
+@page "/login"
+@layout EmptyLayout
+@using InotifyRelay.Data
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+
+<PageTitle>Sign in</PageTitle>
+
+<div class="ir-auth" data-bs-theme="dark">
+    <div class="ir-auth-card">
+        <h1>Sign in</h1>
+        <span class="ir-muted">inotify-relay</span>
+
+        @if (Error == "1")
+        {
+            <div class="alert-error">Invalid email or password.</div>
+        }
+
+        @if (AllowLocal)
+        {
+            <form method="post" action="/api/auth/login" class="ir-form-grid">
+                <AntiforgeryToken />
+                <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                <div>
+                    <label for="email">Email</label>
+                    <input id="email" name="email" type="email" required autocomplete="username" />
+                </div>
+                <div>
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" required autocomplete="current-password" />
+                </div>
+                <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem">
+                    <input type="checkbox" name="rememberMe" value="true" style="width:auto" />
+                    Remember me
+                </label>
+                <button class="btn btn-primary" type="submit">Sign in</button>
+            </form>
+        }
+        @if (OidcEnabled)
+        {
+            <div style="margin-top:1rem">
+                <a class="btn btn-secondary" style="display:block;text-align:center" href="/api/auth/oidc?returnUrl=@(Uri.EscapeDataString(ReturnUrl ?? "/"))">Sign in with SSO</a>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    bool AllowLocal = true;
+    bool OidcEnabled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var row = await Db.AuthSettings.AsNoTracking().FirstOrDefaultAsync(x => x.Id == 1);
+        if (row is not null)
+        {
+            AllowLocal = row.AllowLocalLogin;
+            OidcEnabled = row.OidcEnabled && !string.IsNullOrEmpty(row.OidcAuthority);
+        }
+    }
+}

@@ -1,0 +1,36 @@
+@inherits LayoutComponentBase
+
+<div class="ir-shell" data-bs-theme="dark">
+    <aside class="ir-sidebar">
+        <div class="ir-brand">
+            <span class="ir-logo">⇋</span>
+            <span class="ir-brand-name">inotify-relay</span>
+        </div>
+        <NavMenu />
+        <div class="ir-sidebar-footer">
+            <AuthorizeView>
+                <Authorized>
+                    <span class="ir-user">@context.User.Identity?.Name</span>
+                    <form method="post" action="/api/auth/logout" class="d-inline">
+                        <AntiforgeryToken />
+                        <button class="btn btn-sm btn-outline-light" type="submit">Sign out</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a class="btn btn-sm btn-outline-light" href="/login">Sign in</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </aside>
+    <main class="ir-main">
+        <article class="ir-content">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

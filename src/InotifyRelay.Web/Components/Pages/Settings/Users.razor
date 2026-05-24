@@ -1,0 +1,89 @@
+@page "/settings/users"
+@attribute [Authorize(Policy = "Admin")]
+@rendermode InteractiveServer
+@using InotifyRelay.Data.Entities
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserMgr
+@inject RoleManager<IdentityRole> RoleMgr
+
+<PageTitle>Users</PageTitle>
+
+<h1>Users</h1>
+
+<div class="ir-card">
+    <h2>Add user</h2>
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert-error">@error</div> }
+    @if (!string.IsNullOrEmpty(info))  { <div class="ir-badge ok" style="margin-bottom:0.5rem">@info</div> }
+    <div class="ir-form-grid">
+        <div class="ir-form-row">
+            <div><label>Email</label><input @bind="newEmail" type="email" /></div>
+            <div><label>Password</label><input @bind="newPassword" type="password" /></div>
+        </div>
+        <div>
+            <label>Role</label>
+            <select @bind="newRole" style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                <option>Admin</option>
+                <option>Viewer</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" @onclick="CreateAsync">Create user</button>
+    </div>
+</div>
+
+<div class="ir-card">
+    <h2>Existing users</h2>
+    <table class="ir-table">
+        <thead><tr><th>Email</th><th>Roles</th><th>External</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var u in users)
+            {
+                <tr>
+                    <td>@u.Email</td>
+                    <td>@string.Join(", ", roles.GetValueOrDefault(u.Id, new List<string>()))</td>
+                    <td>@(u.IsExternal ? "yes" : "no")</td>
+                    <td style="text-align:right">
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteAsync(u.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    List<ApplicationUser> users = new();
+    Dictionary<string, List<string>> roles = new();
+    string newEmail = "", newPassword = "", newRole = "Admin";
+    string? error, info;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    async Task LoadAsync()
+    {
+        users = await UserMgr.Users.ToListAsync();
+        roles.Clear();
+        foreach (var u in users)
+            roles[u.Id] = (await UserMgr.GetRolesAsync(u)).ToList();
+    }
+
+    async Task CreateAsync()
+    {
+        error = info = null;
+        var u = new ApplicationUser { UserName = newEmail, Email = newEmail, EmailConfirmed = true };
+        var r = await UserMgr.CreateAsync(u, newPassword);
+        if (!r.Succeeded) { error = string.Join("; ", r.Errors.Select(e => e.Description)); return; }
+        await UserMgr.AddToRoleAsync(u, newRole);
+        info = $"Created {newEmail}";
+        newEmail = ""; newPassword = "";
+        await LoadAsync();
+    }
+
+    async Task DeleteAsync(string id)
+    {
+        var u = await UserMgr.FindByIdAsync(id);
+        if (u is null) return;
+        await UserMgr.DeleteAsync(u);
+        await LoadAsync();
+    }
+}

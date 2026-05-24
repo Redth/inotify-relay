@@ -1,0 +1,38 @@
+services:
+  inotify-relay:
+    image: ghcr.io/redth/inotify-relay:latest
+    # build locally instead:
+    # build:
+    #   context: .
+    #   dockerfile: docker/Dockerfile
+    container_name: inotify-relay
+    restart: unless-stopped
+    ports:
+      - "${INOTIFY_RELAY_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ:-UTC}
+      - INOTIFY_RELAY_DATA=/data
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      # config, database, logs
+      - ./data:/data
+
+      # mount whatever directories you want to watch here.
+      # read-only (:ro) is fine — inotify needs read access only.
+      # path-on-host:path-in-container is what shows up in rule "Source path".
+      - /volume1/media/movies:/watch/movies:ro
+      - /volume1/media/tv:/watch/tv:ro
+
+    # On a default kernel `fs.inotify.max_user_instances=128` will run out
+    # quickly if many directories are watched. Raise it on the HOST (sysctl)
+    # — these cannot be changed from inside an unprivileged container:
+    #   sudo sysctl -w fs.inotify.max_user_watches=524288
+    #   sudo sysctl -w fs.inotify.max_user_instances=512
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/setup"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

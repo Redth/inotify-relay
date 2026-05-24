@@ -1,0 +1,204 @@
+html, body {
+    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
+    background: #0c1116;
+    color: #e6edf3;
+    margin: 0;
+    min-height: 100vh;
+}
+
+a {
+    color: #6ea8fe;
+    text-decoration: none;
+}
+
+a:hover { text-decoration: underline; }
+
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; }
+h1 { font-size: 1.6rem; margin-bottom: 1.25rem; }
+h2 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
+
+/* ---- Shell ---- */
+.ir-shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+}
+
+.ir-sidebar {
+    background: #0a0e13;
+    border-right: 1px solid #1e2530;
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 0.75rem;
+    gap: 1rem;
+}
+
+.ir-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    padding: 0 0.5rem 0.75rem;
+    border-bottom: 1px solid #1e2530;
+}
+.ir-logo { color: #6ea8fe; font-size: 1.5rem; }
+.ir-brand-name { letter-spacing: -0.01em; }
+
+.ir-nav { display: flex; flex-direction: column; gap: 2px; }
+.ir-nav-section {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6a7989;
+    padding: 0.85rem 0.65rem 0.25rem;
+}
+.ir-nav-link {
+    display: block;
+    padding: 0.45rem 0.75rem;
+    border-radius: 6px;
+    color: #b8c4d2;
+    font-size: 0.92rem;
+}
+.ir-nav-link:hover { background: #161c25; color: #e6edf3; text-decoration: none; }
+.ir-nav-link.active { background: #19324f; color: #d3e3ff; }
+
+.ir-sidebar-footer {
+    margin-top: auto;
+    padding: 0.5rem 0.5rem 0;
+    border-top: 1px solid #1e2530;
+    display: flex; flex-direction: column; gap: 0.5rem;
+}
+.ir-user { font-size: 0.8rem; color: #8a97a6; word-break: break-all; }
+
+.ir-main { display: flex; min-width: 0; }
+.ir-content {
+    padding: 2rem 2.5rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* ---- Cards / tables ---- */
+.ir-card {
+    background: #131923;
+    border: 1px solid #1e2530;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+}
+.ir-card h2 { margin-top: 0; }
+.ir-muted { color: #8a97a6; }
+
+.ir-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+}
+.ir-stat {
+    background: #131923;
+    border: 1px solid #1e2530;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+.ir-stat-label { font-size: 0.78rem; color: #8a97a6; text-transform: uppercase; letter-spacing: 0.05em; }
+.ir-stat-value { font-size: 1.6rem; font-weight: 600; margin-top: 0.25rem; }
+
+.ir-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.ir-table th, .ir-table td {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid #1e2530;
+    text-align: left;
+    font-size: 0.92rem;
+}
+.ir-table th { font-weight: 500; color: #8a97a6; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.ir-table tr:hover td { background: #161c25; }
+
+.ir-badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.75rem;
+    border-radius: 999px;
+    background: #1e2937;
+    color: #b8c4d2;
+}
+.ir-badge.ok { background: #16331e; color: #7ce29a; }
+.ir-badge.bad { background: #3a1818; color: #ff8d8d; }
+.ir-badge.muted { background: #1e2530; color: #8a97a6; }
+
+/* ---- Forms ---- */
+.ir-form-grid { display: grid; gap: 0.75rem; max-width: 640px; }
+.ir-form-grid label { display: block; margin-bottom: 0.25rem; font-size: 0.85rem; color: #b8c4d2; }
+.ir-form-grid input,
+.ir-form-grid select,
+.ir-form-grid textarea {
+    width: 100%;
+    background: #0a0e13;
+    border: 1px solid #1e2530;
+    color: #e6edf3;
+    border-radius: 6px;
+    padding: 0.5rem 0.65rem;
+    font: inherit;
+}
+.ir-form-grid input:focus,
+.ir-form-grid select:focus,
+.ir-form-grid textarea:focus { outline: none; border-color: #2e6cd6; box-shadow: 0 0 0 3px rgba(46,108,214,0.2); }
+.ir-form-grid textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88rem; min-height: 120px; }
+.ir-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+.btn { padding: 0.45rem 0.9rem; border-radius: 6px; border: 1px solid transparent; cursor: pointer; font-size: 0.9rem; }
+.btn-primary { background: #2e6cd6; color: white; border-color: #2e6cd6; }
+.btn-primary:hover { background: #2658b0; }
+.btn-secondary { background: transparent; color: #b8c4d2; border-color: #2a3543; }
+.btn-secondary:hover { background: #161c25; }
+.btn-danger { background: #b94545; color: white; border-color: #b94545; }
+.btn-danger:hover { background: #a23a3a; }
+.btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+
+/* ---- Login / Setup ---- */
+.ir-auth {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0c1116;
+}
+.ir-auth-card {
+    background: #131923;
+    border: 1px solid #1e2530;
+    border-radius: 12px;
+    padding: 2rem 2.25rem;
+    width: 100%;
+    max-width: 420px;
+}
+.ir-auth-card h1 { margin: 0 0 0.25rem; font-size: 1.5rem; }
+.ir-auth-card .ir-muted { margin-bottom: 1.5rem; display: block; }
+.ir-auth-card .btn-primary { width: 100%; padding: 0.65rem; }
+
+.alert-error {
+    background: #3a1818;
+    color: #ffb8b8;
+    border: 1px solid #5a2424;
+    border-radius: 6px;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+/* error UI from template */
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+    color: #2b2b2b;
+}
+#blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: 0.75rem; top: 0.5rem; }

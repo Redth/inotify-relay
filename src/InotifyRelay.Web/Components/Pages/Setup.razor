@@ -1,0 +1,35 @@
+@page "/setup"
+@layout EmptyLayout
+@using Microsoft.AspNetCore.Components.Web
+@inject NavigationManager Nav
+
+<PageTitle>First-run setup</PageTitle>
+
+<div class="ir-auth" data-bs-theme="dark">
+    <div class="ir-auth-card">
+        <h1>Welcome!</h1>
+        <span class="ir-muted">Create the first admin account to get started.</span>
+
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <div class="alert-error">@Error</div>
+        }
+
+        <form method="post" action="/api/auth/setup" class="ir-form-grid">
+            <AntiforgeryToken />
+            <div>
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" required autocomplete="username" />
+            </div>
+            <div>
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" minlength="8" required autocomplete="new-password" />
+            </div>
+            <button class="btn btn-primary" type="submit">Create admin account</button>
+        </form>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+}

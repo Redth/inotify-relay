@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/InotifyRelay.Core/InotifyRelay.Core.csproj" />
+    <Project Path="src/InotifyRelay.Data/InotifyRelay.Data.csproj" />
+    <Project Path="src/InotifyRelay.Providers/InotifyRelay.Providers.csproj" />
+    <Project Path="src/InotifyRelay.Watcher/InotifyRelay.Watcher.csproj" />
+    <Project Path="src/InotifyRelay.Web/InotifyRelay.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/InotifyRelay.Core.Tests/InotifyRelay.Core.Tests.csproj" />
+    <Project Path="tests/InotifyRelay.Providers.Tests/InotifyRelay.Providers.Tests.csproj" />
+    <Project Path="tests/InotifyRelay.Watcher.Tests/InotifyRelay.Watcher.Tests.csproj" />
+  </Folder>
+</Solution>

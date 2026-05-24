@@ -1,0 +1,43 @@
+@page "/settings/system"
+@attribute [Authorize(Policy = "Admin")]
+@rendermode InteractiveServer
+@using InotifyRelay.Data
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+
+<PageTitle>System</PageTitle>
+
+<h1>System</h1>
+
+@if (settings is null)
+{
+    <p class="ir-muted">Loading…</p>
+}
+else
+{
+    <div class="ir-card">
+        <h2>Logging & retention</h2>
+        <div class="ir-form-grid">
+            <div>
+                <label>Log level</label>
+                <select @bind="settings.LogLevel" style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                    <option>Trace</option><option>Debug</option><option>Information</option><option>Warning</option><option>Error</option>
+                </select>
+            </div>
+            <div class="ir-form-row">
+                <div><label>Event log retention (days)</label><input type="number" min="1" @bind="settings.EventRetentionDays" /></div>
+                <div><label>Delivery log retention (days)</label><input type="number" min="1" @bind="settings.DeliveryRetentionDays" /></div>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" @onclick="SaveAsync">Save</button>
+    @if (saved) { <span class="ir-badge ok" style="margin-left:0.5rem">Saved</span> }
+}
+
+@code {
+    InotifyRelay.Data.Entities.SystemSettingsEntity? settings;
+    bool saved;
+    protected override async Task OnInitializedAsync() => settings = await Db.SystemSettings.FirstOrDefaultAsync(x => x.Id == 1);
+    async Task SaveAsync() { if (settings is null) return; settings.UpdatedAt = DateTimeOffset.UtcNow; await Db.SaveChangesAsync(); saved = true; }
+}

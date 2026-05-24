@@ -1,0 +1,79 @@
+@page "/"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using InotifyRelay.Data
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+
+<div class="ir-stat-grid">
+    <div class="ir-stat">
+        <div class="ir-stat-label">Rules</div>
+        <div class="ir-stat-value">@enabledRules / @totalRules</div>
+        <div class="ir-muted" style="font-size:0.78rem;margin-top:0.25rem">enabled / total</div>
+    </div>
+    <div class="ir-stat">
+        <div class="ir-stat-label">Targets</div>
+        <div class="ir-stat-value">@totalTargets</div>
+    </div>
+    <div class="ir-stat">
+        <div class="ir-stat-label">Events (1h)</div>
+        <div class="ir-stat-value">@events1h</div>
+    </div>
+    <div class="ir-stat">
+        <div class="ir-stat-label">Deliveries (1h)</div>
+        <div class="ir-stat-value">@deliveries1h <span class="ir-muted" style="font-size:0.85rem">(@failed1h failed)</span></div>
+    </div>
+</div>
+
+<div class="ir-card" style="margin-top:1.5rem">
+    <h2>Recent deliveries</h2>
+    @if (recent.Count == 0)
+    {
+        <p class="ir-muted">No deliveries yet.</p>
+    }
+    else
+    {
+        <table class="ir-table">
+            <thead>
+                <tr><th>Time</th><th>Target</th><th>Provider</th><th>Status</th><th>Attempts</th><th>Elapsed</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var d in recent)
+                {
+                    <tr>
+                        <td>@d.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@d.TargetName</td>
+                        <td>@d.ProviderType</td>
+                        <td>
+                            <span class="ir-badge @(d.Success ? "ok" : "bad")">
+                                @(d.Success ? "OK" : "FAIL") @d.StatusCode
+                            </span>
+                        </td>
+                        <td>@d.Attempts</td>
+                        <td>@d.ElapsedMs ms</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    int enabledRules, totalRules, totalTargets, events1h, deliveries1h, failed1h;
+    List<InotifyRelay.Data.Entities.DeliveryLogEntity> recent = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hourAgo = DateTime.UtcNow.AddHours(-1);
+        totalRules = await Db.Rules.CountAsync();
+        enabledRules = await Db.Rules.CountAsync(r => r.Enabled);
+        totalTargets = await Db.Targets.CountAsync();
+        events1h = await Db.EventLogs.CountAsync(e => e.Timestamp >= hourAgo);
+        deliveries1h = await Db.DeliveryLogs.CountAsync(d => d.Timestamp >= hourAgo);
+        failed1h = await Db.DeliveryLogs.CountAsync(d => d.Timestamp >= hourAgo && !d.Success);
+        recent = await Db.DeliveryLogs.OrderByDescending(d => d.Timestamp).Take(20).ToListAsync();
+    }
+}

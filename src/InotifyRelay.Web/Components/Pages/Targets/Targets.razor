@@ -1,0 +1,74 @@
+@page "/targets"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject InotifyRelay.Web.Services.TargetService TargetSvc
+@inject InotifyRelay.Web.Services.ProviderCatalog Providers
+@inject NavigationManager Nav
+
+<PageTitle>Targets</PageTitle>
+
+<div style="display:flex;align-items:center;justify-content:space-between">
+    <h1 style="margin:0">Targets</h1>
+    <form @onsubmit="CreateTarget" @onsubmit:preventDefault style="display:flex;gap:0.5rem;align-items:end">
+        <div>
+            <label class="ir-muted" style="font-size:0.78rem;display:block">Name</label>
+            <input @bind="newName" required style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.45rem 0.65rem" />
+        </div>
+        <div>
+            <label class="ir-muted" style="font-size:0.78rem;display:block">Provider</label>
+            <select @bind="newProvider" style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.45rem 0.65rem">
+                @foreach (var p in Providers.All)
+                {
+                    <option value="@p.TypeKey">@p.DisplayName</option>
+                }
+            </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Add target</button>
+    </form>
+</div>
+
+<div class="ir-card" style="margin-top:1rem">
+    @if (targets.Count == 0)
+    {
+        <p class="ir-muted">No targets yet.</p>
+    }
+    else
+    {
+        <table class="ir-table">
+            <thead><tr><th>Name</th><th>Provider</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var t in targets)
+            {
+                <tr>
+                    <td><a href="/targets/@t.Id">@t.Name</a></td>
+                    <td><span class="ir-badge">@t.ProviderType</span></td>
+                    <td style="text-align:right">
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteAsync(t.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    List<InotifyRelay.Data.Entities.TargetEntity> targets = new();
+    string newName = "";
+    string newProvider = "webhook";
+
+    protected override async Task OnInitializedAsync() => targets = await TargetSvc.ListAsync();
+
+    async Task CreateTarget()
+    {
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        var t = await TargetSvc.CreateAsync(newName.Trim(), newProvider);
+        Nav.NavigateTo($"/targets/{t.Id}");
+    }
+
+    async Task DeleteAsync(Guid id)
+    {
+        await TargetSvc.DeleteAsync(id);
+        targets = await TargetSvc.ListAsync();
+    }
+}

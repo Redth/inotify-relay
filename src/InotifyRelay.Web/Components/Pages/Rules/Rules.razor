@@ -1,0 +1,79 @@
+@page "/rules"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject InotifyRelay.Web.Services.RuleService RuleSvc
+@inject NavigationManager Nav
+
+<PageTitle>Rules</PageTitle>
+
+<div style="display:flex;align-items:center;justify-content:space-between">
+    <h1 style="margin:0">Rules</h1>
+    <form @onsubmit="CreateRule" @onsubmit:preventDefault style="display:flex;gap:0.5rem">
+        <input @bind="newName" placeholder="New rule name…" required
+               style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.45rem 0.65rem" />
+        <button class="btn btn-primary" type="submit">Add rule</button>
+    </form>
+</div>
+
+<div class="ir-card" style="margin-top:1rem">
+    @if (rules.Count == 0)
+    {
+        <p class="ir-muted">No rules yet. Add one to start relaying filesystem events.</p>
+    }
+    else
+    {
+        <table class="ir-table">
+            <thead>
+                <tr><th>Name</th><th>Sources</th><th>Targets</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in rules)
+                {
+                    <tr>
+                        <td><a href="/rules/@r.Id">@r.Name</a></td>
+                        <td>@r.Sources.Count</td>
+                        <td>@r.TargetBindings.Count</td>
+                        <td>
+                            <span class="ir-badge @(r.Enabled ? "ok" : "muted")">@(r.Enabled ? "Enabled" : "Disabled")</span>
+                        </td>
+                        <td style="text-align:right">
+                            <button class="btn btn-sm btn-secondary" @onclick="() => ToggleAsync(r.Id, !r.Enabled)">
+                                @(r.Enabled ? "Disable" : "Enable")
+                            </button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteAsync(r.Id)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    List<InotifyRelay.Data.Entities.RuleEntity> rules = new();
+    string newName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        rules = await RuleSvc.ListAsync();
+    }
+
+    async Task CreateRule()
+    {
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        var r = await RuleSvc.CreateAsync(newName.Trim());
+        Nav.NavigateTo($"/rules/{r.Id}");
+    }
+
+    async Task ToggleAsync(Guid id, bool enabled)
+    {
+        await RuleSvc.SetEnabledAsync(id, enabled);
+        rules = await RuleSvc.ListAsync();
+    }
+
+    async Task DeleteAsync(Guid id)
+    {
+        await RuleSvc.DeleteAsync(id);
+        rules = await RuleSvc.ListAsync();
+    }
+}
