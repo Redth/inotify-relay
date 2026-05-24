@@ -21,7 +21,7 @@ public sealed class WebhookProvider(IHttpClientFactory http, ITemplateFilterRegi
     {
         var sw = Stopwatch.StartNew();
         var cfg = JsonSerializer.Deserialize<WebhookConfig>(ctx.ProviderConfigJson) ?? new WebhookConfig();
-        var tctx = EventTemplateContext.Build(ctx.Change, ctx.RuleName, ctx.Change.SourceRoot);
+        var tctx = EventTemplateContext.Build(ctx.Change, ctx.RuleName, ctx.Change.SourceRoot, ctx.PathMappings);
 
         var url = Template.Parse(cfg.UrlTemplate).Render(tctx, filters);
         var client = http.CreateClient("relay");

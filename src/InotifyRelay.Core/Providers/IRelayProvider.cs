@@ -1,4 +1,5 @@
 using InotifyRelay.Core.Events;
+using InotifyRelay.Core.Pipeline;
 
 namespace InotifyRelay.Core.Providers;
 
@@ -7,7 +8,8 @@ public sealed record RelayContext(
     string RuleName,
     string TargetName,
     string ProviderConfigJson,
-    string? TemplateOverrideJson);
+    string? TemplateOverrideJson,
+    IReadOnlyList<PathMapping>? PathMappings = null);
 
 public sealed record RelayResult(
     bool Success,

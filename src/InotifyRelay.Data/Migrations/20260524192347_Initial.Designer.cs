@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InotifyRelay.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260524191819_Initial")]
+    [Migration("20260524192347_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -361,6 +361,10 @@ namespace InotifyRelay.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PathMappingsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

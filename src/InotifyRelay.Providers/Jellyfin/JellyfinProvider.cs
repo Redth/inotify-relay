@@ -20,7 +20,7 @@ public sealed class JellyfinProvider(IHttpClientFactory http, ITemplateFilterReg
     {
         var sw = Stopwatch.StartNew();
         var cfg = JsonSerializer.Deserialize<JellyfinConfig>(ctx.ProviderConfigJson) ?? new JellyfinConfig();
-        var tctx = EventTemplateContext.Build(ctx.Change, ctx.RuleName, ctx.Change.SourceRoot);
+        var tctx = EventTemplateContext.Build(ctx.Change, ctx.RuleName, ctx.Change.SourceRoot, ctx.PathMappings);
 
         var client = http.CreateClient("relay");
         var baseUrl = cfg.BaseUrl.TrimEnd('/');

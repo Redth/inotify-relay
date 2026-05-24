@@ -165,6 +165,7 @@ namespace InotifyRelay.Data.Migrations
                     RetryBackoffMultiplier = table.Column<double>(type: "REAL", nullable: false),
                     RetryMaxBackoffMs = table.Column<int>(type: "INTEGER", nullable: false),
                     CoalesceMs = table.Column<int>(type: "INTEGER", nullable: false),
+                    PathMappingsJson = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
                 },

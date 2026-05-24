@@ -17,7 +17,7 @@ public sealed class PlexProvider(IHttpClientFactory http, ITemplateFilterRegistr
     {
         var sw = Stopwatch.StartNew();
         var cfg = JsonSerializer.Deserialize<PlexConfig>(ctx.ProviderConfigJson) ?? new PlexConfig();
-        var tctx = EventTemplateContext.Build(ctx.Change, ctx.RuleName, ctx.Change.SourceRoot);
+        var tctx = EventTemplateContext.Build(ctx.Change, ctx.RuleName, ctx.Change.SourceRoot, ctx.PathMappings);
 
         var client = http.CreateClient("relay");
         var baseUrl = cfg.BaseUrl.TrimEnd('/');

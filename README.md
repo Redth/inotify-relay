@@ -30,6 +30,11 @@ P/Invoke layer that keeps **a single instance** for the entire process.
   `/movies/Inception/` produces one Jellyfin/Plex scan, not fifty. Within the
   sliding window, any descendant path whose ancestor was also queued is dropped;
   an empty/full-scan event wins outright.
+- **Per-target path mappings** (Sonarr/Radarr-style "Remote Path Mappings") —
+  if inotify-relay sees `/watch/movies/...` but Jellyfin sees `/data/movies/...`,
+  configure the rewrite once on the target and every templated path variable
+  flips automatically. Longest matching prefix wins; raw originals stay
+  accessible as `{source.path}`, `{source.directory}`, `{source.sourceRoot}`.
 - Built-in providers: **Webhook**, **Jellyfin**, **Plex**.
 - Plain templating with variable substitution + filters
   (`{path|replace:'/host':'/jellyfin'|lower}`).
@@ -115,18 +120,19 @@ Templates use `{name}` or `{name|filter:'arg'}`:
 
 | variable | meaning |
 |---|---|
-| `path` | absolute path of the changed file/dir |
-| `relativePath` | path relative to the matching source root |
-| `sourceRoot` | the source root that matched |
+| `path` | absolute path, **rewritten via the target's path mappings** |
+| `directory` | parent directory of `path` (also rewritten) |
+| `sourceRoot` | the source root that matched (also rewritten) |
+| `relativePath` | path relative to source root — invariant under mapping |
+| `relativeDirectory` | parent dir relative to source root — invariant |
+| `source.path`, `source.directory`, `source.sourceRoot` | raw unmapped originals |
 | `filename` | basename including extension |
 | `name` | basename without extension |
 | `ext` | extension including dot |
-| `directory` | parent directory |
-| `relativeDirectory` | parent dir relative to source root |
 | `event` | normalized event name (`Created`, `ClosedWrite`, …) |
 | `isDirectory` | `true` / `false` |
 | `timestamp` | ISO 8601 UTC |
-| `oldPath` | previous path on `Renamed` |
+| `oldPath` | previous path on `Renamed` (mapped); `source.oldPath` is raw |
 | `rule.name`, `rule.id` | for tagging |
 | `env.FOO` | environment variable lookup |
 
@@ -139,18 +145,19 @@ Templates use `{name}` or `{name|filter:'arg'}`:
 - `urlencode`, `jsonescape`
 - `default:'fallback'`
 
-### Example: Jellyfin partial scan
+### Example: Jellyfin partial scan with mismatched mounts
 
-If your media lives on the host at `/volume1/media/movies`, you've mounted it
-into both `inotify-relay` and Jellyfin (often at different paths inside each
-container), use the **Jellyfin** provider in "report-path" mode with a path
-template like:
+If your media lives on the host at `/volume1/media/movies`, mounted into
+inotify-relay at `/watch/movies` and into Jellyfin at `/data/movies`, configure
+a path mapping on the Jellyfin target:
 
-```
-{path|replace:'/watch/movies':'/media/movies'}
-```
+| From | To |
+|---|---|
+| `/watch/movies` | `/data/movies` |
 
-That rewrites the in-relay path back to whatever path Jellyfin sees.
+The path template can then just be `{path}` (or `{directory}`) — the mapping
+is applied automatically. If you need both the source and target views in one
+payload, use `{source.path}` for the unmapped original.
 
 ## Configuration
 

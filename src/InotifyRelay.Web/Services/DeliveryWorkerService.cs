@@ -52,7 +52,7 @@ public sealed class DeliveryWorkerService(
             }
 
             var ctx = new RelayContext(work.Change, work.Rule.Name, target.Name,
-                target.ProviderConfigJson, work.Binding.TemplateOverrideJson);
+                target.ProviderConfigJson, work.Binding.TemplateOverrideJson, target.PathMappings);
 
             var attempts = 0;
             var delay = target.RetryInitialBackoffMs;

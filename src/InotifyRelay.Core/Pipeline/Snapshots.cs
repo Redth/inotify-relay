@@ -32,4 +32,5 @@ public sealed record TargetSnapshot(
     int RetryInitialBackoffMs,
     double RetryBackoffMultiplier,
     int RetryMaxBackoffMs,
-    int CoalesceMs);
+    int CoalesceMs,
+    IReadOnlyList<PathMapping> PathMappings);

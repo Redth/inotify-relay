@@ -1,3 +1,4 @@
+using System.Text.Json;
 using InotifyRelay.Core.Pipeline;
 using InotifyRelay.Data;
 using Microsoft.EntityFrameworkCore;
@@ -39,5 +40,14 @@ public sealed class EfConfigStore(AppDbContext db) : IConfigStore
     private static TargetSnapshot Map(Data.Entities.TargetEntity t) => new(
         t.Id, t.Name, t.ProviderType, t.ProviderConfigJson, t.DefaultTemplateJson,
         t.RetryMaxAttempts, t.RetryInitialBackoffMs, t.RetryBackoffMultiplier, t.RetryMaxBackoffMs,
-        t.CoalesceMs);
+        t.CoalesceMs, ParseMappings(t.PathMappingsJson));
+
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    private static IReadOnlyList<PathMapping> ParseMappings(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return Array.Empty<PathMapping>();
+        try { return JsonSerializer.Deserialize<List<PathMapping>>(json, JsonOpts) ?? new(); }
+        catch { return Array.Empty<PathMapping>(); }
+    }
 }

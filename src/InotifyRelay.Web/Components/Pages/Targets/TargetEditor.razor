@@ -1,6 +1,8 @@
 @page "/targets/{Id:guid}"
 @attribute [Authorize]
 @rendermode InteractiveServer
+@using System.Text.Json
+@using InotifyRelay.Core.Pipeline
 @using InotifyRelay.Core.Providers
 @using InotifyRelay.Data.Entities
 @inject InotifyRelay.Web.Services.TargetService TargetSvc
@@ -57,6 +59,42 @@ else
     </div>
 
     <div class="ir-card">
+        <h2>Path mappings</h2>
+        <p class="ir-muted">
+            Rewrite path-derived template variables (<code>{path}</code>, <code>{directory}</code>,
+            <code>{sourceRoot}</code>) before they're sent to this target. Longest matching
+            prefix wins. Use this when the path inotify-relay sees (e.g.
+            <code>/watch/movies/&hellip;</code>) differs from what the target sees (e.g.
+            <code>/data/movies/&hellip;</code>). Same idea as Sonarr/Radarr "Remote Path Mappings".
+            The raw originals stay available as <code>{source.path}</code> etc.
+        </p>
+        @if (pathMappings.Count == 0)
+        {
+            <p class="ir-muted"><em>No mappings configured.</em></p>
+        }
+        else
+        {
+            @foreach (var m in pathMappings)
+            {
+                <div class="ir-form-row" style="margin-bottom:0.5rem;align-items:end">
+                    <div>
+                        <label>From (path here)</label>
+                        <input @bind="m.From" placeholder="/watch/movies" />
+                    </div>
+                    <div>
+                        <label>To (path on target)</label>
+                        <input @bind="m.To" placeholder="/data/movies" />
+                    </div>
+                </div>
+                <div style="margin-bottom:0.75rem">
+                    <button class="btn btn-sm btn-danger" @onclick="() => pathMappings.Remove(m)">Remove</button>
+                </div>
+            }
+        }
+        <button class="btn btn-secondary" @onclick="AddMapping">Add mapping</button>
+    </div>
+
+    <div class="ir-card">
         <h2>Coalescing</h2>
         <p class="ir-muted">
             Hold incoming events for this many milliseconds; while events keep arriving the
@@ -103,11 +141,37 @@ else
     RelayResult? testResult;
     bool testing;
 
-    protected override async Task OnInitializedAsync() => target = await TargetSvc.GetAsync(Id);
+    static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    // Mutable working copy bound to the form. Round-tripped to JSON on save.
+    sealed class MappingRow { public string From { get; set; } = ""; public string To { get; set; } = ""; }
+    List<MappingRow> pathMappings = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        target = await TargetSvc.GetAsync(Id);
+        if (target is not null && !string.IsNullOrWhiteSpace(target.PathMappingsJson))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<PathMapping>>(target.PathMappingsJson, JsonOpts);
+                if (parsed is not null)
+                    pathMappings = parsed.Select(m => new MappingRow { From = m.From, To = m.To }).ToList();
+            }
+            catch { /* leave empty */ }
+        }
+    }
+
+    void AddMapping() => pathMappings.Add(new MappingRow());
 
     async Task SaveAsync()
     {
         if (target is null) return;
+        var clean = pathMappings
+            .Where(m => !string.IsNullOrWhiteSpace(m.From) && !string.IsNullOrWhiteSpace(m.To))
+            .Select(m => new PathMapping(m.From.Trim(), m.To.Trim()))
+            .ToList();
+        target.PathMappingsJson = JsonSerializer.Serialize(clean);
         await TargetSvc.SaveAsync(target);
         Nav.NavigateTo("/targets");
     }

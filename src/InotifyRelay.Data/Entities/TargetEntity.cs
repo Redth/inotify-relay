@@ -24,6 +24,14 @@ public class TargetEntity
     /// </summary>
     public int CoalesceMs { get; set; } = 0;
 
+    /// <summary>
+    /// JSON array of <c>{From, To}</c> prefix rewrites. Applied to path-derived
+    /// template variables before rendering. Same idea as Sonarr/Radarr remote
+    /// path mappings — used when the path the watcher sees and the path the
+    /// target (Jellyfin/Plex/etc.) sees aren't the same on disk.
+    /// </summary>
+    public string PathMappingsJson { get; set; } = "[]";
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

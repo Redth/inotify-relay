@@ -64,6 +64,17 @@ public sealed class TargetService(AppDbContext db, ProviderCatalog catalog)
         var fake = new Core.Events.FileSystemChange(
             "/watch/test/sample.mkv", Core.Events.FileEventType.ClosedWrite, false,
             DateTimeOffset.UtcNow, "/watch/test");
-        return await provider.SendAsync(new RelayContext(fake, "test-rule", t.Name, t.ProviderConfigJson, null), ct);
+        var mappings = ParseMappings(t.PathMappingsJson);
+        return await provider.SendAsync(
+            new RelayContext(fake, "test-rule", t.Name, t.ProviderConfigJson, null, mappings), ct);
+    }
+
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    private static IReadOnlyList<Core.Pipeline.PathMapping> ParseMappings(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return Array.Empty<Core.Pipeline.PathMapping>();
+        try { return JsonSerializer.Deserialize<List<Core.Pipeline.PathMapping>>(json, JsonOpts) ?? new(); }
+        catch { return Array.Empty<Core.Pipeline.PathMapping>(); }
     }
 }

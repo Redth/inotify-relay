@@ -361,6 +361,10 @@ namespace InotifyRelay.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PathMappingsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ProviderConfigJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
