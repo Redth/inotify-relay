@@ -14,11 +14,13 @@ public static class AuthEndpoints
         app.MapPost("/api/auth/login", async (
             [FromForm] string email,
             [FromForm] string password,
-            [FromForm] bool rememberMe,
+            [FromForm] bool? rememberMe,
             [FromForm] string? returnUrl,
             SignInManager<ApplicationUser> signIn) =>
         {
-            var result = await signIn.PasswordSignInAsync(email, password, rememberMe, lockoutOnFailure: false);
+            // Unchecked HTML checkboxes are omitted from the form payload, so
+            // rememberMe must be optional. Default to false.
+            var result = await signIn.PasswordSignInAsync(email, password, rememberMe ?? false, lockoutOnFailure: false);
             if (result.Succeeded)
                 return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
             return Results.LocalRedirect($"/login?error=1&returnUrl={Uri.EscapeDataString(returnUrl ?? "/")}");
