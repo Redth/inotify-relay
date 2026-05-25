@@ -1,0 +1,82 @@
+@inherits ProviderEditorBase<InotifyRelay.Providers.Jellyfin.JellyfinConfig>
+
+<div class="ir-form-grid">
+    <div class="ir-form-row">
+        <div>
+            <label>Base URL</label>
+            <input @bind="Config.BaseUrl" @bind:after="FlushAsync" placeholder="http://jellyfin:8096" />
+        </div>
+        <div>
+            <label>API key</label>
+            <input @bind="Config.ApiKey" @bind:after="FlushAsync" type="password" placeholder="from Dashboard → API Keys" />
+        </div>
+    </div>
+
+    <div>
+        <label>Action</label>
+        <select @bind="Config.Action" @bind:after="FlushAsync"
+                style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem;width:100%">
+            <option value="refresh-library">Refresh library (full scan)</option>
+            <option value="report-path">Report path (point Jellyfin at one file/folder)</option>
+        </select>
+    </div>
+
+    @if (Config.Action == "refresh-library")
+    {
+        <div>
+            <label>Library</label>
+            <div style="display:flex;gap:0.5rem">
+                <select @bind="Config.LibraryId" @bind:after="FlushAsync"
+                        style="flex:1;background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                    <option value="">(all libraries)</option>
+                    @if (Libraries is not null)
+                    {
+                        @foreach (var lib in Libraries)
+                        {
+                            <option value="@lib.Id">@lib.Name@(string.IsNullOrEmpty(lib.Kind) ? "" : $" — {lib.Kind}")</option>
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(Config.LibraryId))
+                    {
+                        <option value="@Config.LibraryId">@Config.LibraryId</option>
+                    }
+                </select>
+                <button class="btn btn-secondary" type="button" @onclick="FetchLibrariesAsync" disabled="@LibraryLoading">
+                    @(LibraryLoading ? "Fetching…" : "Fetch libraries")
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(LibraryError))
+            {
+                <div class="alert-error" style="margin-top:0.5rem">@LibraryError</div>
+            }
+            <small class="ir-muted" style="display:block;margin-top:0.4rem">
+                Click "Fetch libraries" after filling in the URL + API key to pull a live list from Jellyfin.
+                Leave at "(all libraries)" to scan everything.
+            </small>
+        </div>
+    }
+    else
+    {
+        <div>
+            <label>Path template</label>
+            <input @bind="Config.PathTemplate" @bind:after="FlushAsync" placeholder="{path}" />
+            <small class="ir-muted" style="display:block;margin-top:0.4rem">
+                Path sent to Jellyfin's <code>/Library/Media/Updated</code> endpoint. Use <code>{path}</code>,
+                <code>{directory}</code>, etc. Path mappings (below) are applied automatically.
+            </small>
+        </div>
+        <div>
+            <label>Update type</label>
+            <select @bind="Config.UpdateType" @bind:after="FlushAsync"
+                    style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                <option value="Created">Created</option>
+                <option value="Modified">Modified</option>
+                <option value="Deleted">Deleted</option>
+            </select>
+        </div>
+    }
+</div>
+
+@code {
+    protected override string ProviderKey => "jellyfin";
+}

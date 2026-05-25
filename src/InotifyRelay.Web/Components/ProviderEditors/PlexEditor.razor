@@ -1,0 +1,66 @@
+@inherits ProviderEditorBase<InotifyRelay.Providers.Plex.PlexConfig>
+
+<div class="ir-form-grid">
+    <div class="ir-form-row">
+        <div>
+            <label>Base URL</label>
+            <input @bind="Config.BaseUrl" @bind:after="FlushAsync" placeholder="http://plex:32400" />
+        </div>
+        <div>
+            <label>X-Plex-Token</label>
+            <input @bind="Config.Token" @bind:after="FlushAsync" type="password" placeholder="Plex auth token" />
+        </div>
+    </div>
+
+    <div>
+        <label>Action</label>
+        <select @bind="Config.Action" @bind:after="FlushAsync"
+                style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem;width:100%">
+            <option value="refresh-section">Refresh section (full scan)</option>
+            <option value="refresh-path">Refresh path (partial scan of one folder)</option>
+        </select>
+    </div>
+
+    <div>
+        <label>Library section</label>
+        <div style="display:flex;gap:0.5rem">
+            <select @bind="Config.SectionId" @bind:after="FlushAsync"
+                    style="flex:1;background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                @if (Libraries is not null)
+                {
+                    @foreach (var lib in Libraries)
+                    {
+                        <option value="@lib.Id">@lib.Id — @lib.Name@(string.IsNullOrEmpty(lib.Kind) ? "" : $" ({lib.Kind})")</option>
+                    }
+                }
+                else if (!string.IsNullOrEmpty(Config.SectionId))
+                {
+                    <option value="@Config.SectionId">@Config.SectionId</option>
+                }
+            </select>
+            <button class="btn btn-secondary" type="button" @onclick="FetchLibrariesAsync" disabled="@LibraryLoading">
+                @(LibraryLoading ? "Fetching…" : "Fetch sections")
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(LibraryError))
+        {
+            <div class="alert-error" style="margin-top:0.5rem">@LibraryError</div>
+        }
+    </div>
+
+    @if (Config.Action == "refresh-path")
+    {
+        <div>
+            <label>Path template</label>
+            <input @bind="Config.PathTemplate" @bind:after="FlushAsync" placeholder="{directory}" />
+            <small class="ir-muted" style="display:block;margin-top:0.4rem">
+                Folder to scan. Path mappings (below) are applied automatically. Use <code>{directory}</code>
+                for the parent folder of the file that changed, or <code>{path}</code> for the file itself.
+            </small>
+        </div>
+    }
+</div>
+
+@code {
+    protected override string ProviderKey => "plex";
+}

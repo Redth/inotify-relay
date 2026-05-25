@@ -1,0 +1,139 @@
+@inherits ProviderEditorBase<InotifyRelay.Providers.Webhook.WebhookConfig>
+
+<div class="ir-form-grid">
+    <div class="ir-form-row">
+        <div style="grid-column: span 2">
+            <label>URL template</label>
+            <input @bind="Config.UrlTemplate" @bind:after="FlushAsync" placeholder="https://hook.example.com/relay" />
+        </div>
+    </div>
+
+    <div class="ir-form-row">
+        <div>
+            <label>Method</label>
+            <select @bind="Config.Method" @bind:after="FlushAsync"
+                    style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                <option>POST</option>
+                <option>PUT</option>
+                <option>PATCH</option>
+                <option>GET</option>
+                <option>DELETE</option>
+            </select>
+        </div>
+        <div>
+            <label>Content-Type</label>
+            <input @bind="Config.ContentType" @bind:after="FlushAsync" placeholder="application/json" />
+        </div>
+    </div>
+
+    <div>
+        <label>Auth</label>
+        <select @bind="Config.Auth.Type" @bind:after="FlushAsync"
+                style="background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem;width:100%">
+            <option value="none">None</option>
+            <option value="bearer">Bearer token</option>
+            <option value="basic">Basic (username + password)</option>
+        </select>
+    </div>
+
+    @if (Config.Auth.Type == "bearer")
+    {
+        <div>
+            <label>Token</label>
+            <input @bind="Config.Auth.Token" @bind:after="FlushAsync" type="password" />
+        </div>
+    }
+    else if (Config.Auth.Type == "basic")
+    {
+        <div class="ir-form-row">
+            <div>
+                <label>Username</label>
+                <input @bind="Config.Auth.Username" @bind:after="FlushAsync" />
+            </div>
+            <div>
+                <label>Password</label>
+                <input @bind="Config.Auth.Password" @bind:after="FlushAsync" type="password" />
+            </div>
+        </div>
+    }
+
+    <div>
+        <label>Custom headers</label>
+        @if (_headerRows.Count == 0)
+        {
+            <small class="ir-muted">No custom headers.</small>
+        }
+        else
+        {
+            @foreach (var row in _headerRows)
+            {
+                <div class="ir-form-row" style="margin-bottom:0.4rem;align-items:end">
+                    <input value="@row.Key" @oninput="e => SetHeaderKey(row, (string)e.Value!)" placeholder="X-Custom" />
+                    <div style="display:flex;gap:0.4rem">
+                        <input value="@row.Value" @oninput="e => SetHeaderValue(row, (string)e.Value!)" placeholder="value (templated)" style="flex:1" />
+                        <button class="btn btn-sm btn-danger" type="button" @onclick="async () => { _headerRows.Remove(row); await SyncHeadersAsync(); }">Remove</button>
+                    </div>
+                </div>
+            }
+        }
+        <button class="btn btn-secondary btn-sm" type="button" @onclick="AddHeaderRow">Add header</button>
+    </div>
+
+    @if (Config.Method != "GET" && Config.Method != "DELETE")
+    {
+        <div>
+            <label>Body template</label>
+            <InotifyRelay.Web.Components.Shared.CodeEditor
+                @bind-Value="_bodyJson"
+                @bind-Value:after="OnBodyChangedAsync"
+                Language="json"
+                Height="220" />
+            <small class="ir-muted" style="display:block;margin-top:0.4rem">
+                Templated. Use <code>{path}</code>, <code>{event}</code>, etc.; literal <code>{</code>/<code>}</code>
+                in JSON pass through. <code>{path|jsonescape}</code> handles embedded quotes/newlines.
+            </small>
+        </div>
+    }
+</div>
+
+@code {
+    private sealed class HeaderRow { public string Key { get; set; } = ""; public string Value { get; set; } = ""; }
+    private List<HeaderRow> _headerRows = new();
+    private string _bodyJson = "";
+
+    protected override string ProviderKey => "webhook";
+
+    protected override void OnParametersSet()
+    {
+        var external = Json != LastEmittedJson;
+        base.OnParametersSet();
+        if (external)
+        {
+            // Only resync local view state when the JSON came from outside (e.g. initial load).
+            // After our own Flush, the parent feeds the same Json back; resyncing here would
+            // recreate header rows mid-keystroke and yank input focus.
+            _headerRows = Config.Headers?.Select(kvp => new HeaderRow { Key = kvp.Key, Value = kvp.Value }).ToList()
+                          ?? new List<HeaderRow>();
+            _bodyJson = Config.BodyTemplate ?? "";
+        }
+    }
+
+    void AddHeaderRow() => _headerRows.Add(new HeaderRow());
+
+    async Task SetHeaderKey(HeaderRow row, string value) { row.Key = value; await SyncHeadersAsync(); }
+    async Task SetHeaderValue(HeaderRow row, string value) { row.Value = value; await SyncHeadersAsync(); }
+
+    async Task SyncHeadersAsync()
+    {
+        Config.Headers = _headerRows
+            .Where(r => !string.IsNullOrWhiteSpace(r.Key))
+            .ToDictionary(r => r.Key, r => r.Value ?? "");
+        await FlushAsync();
+    }
+
+    async Task OnBodyChangedAsync()
+    {
+        Config.BodyTemplate = _bodyJson;
+        await FlushAsync();
+    }
+}

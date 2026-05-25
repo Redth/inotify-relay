@@ -59,11 +59,34 @@ else
 
     <div class="ir-card">
         <h2>Provider config</h2>
-        <p class="ir-muted">JSON shape depends on provider type. The default is pre-filled when the target is created.</p>
-        <InotifyRelay.Web.Components.Shared.CodeEditor
-            @bind-Value="target.ProviderConfigJson"
-            Language="json"
-            Height="360" />
+        @switch ((target.ProviderType ?? "").ToLowerInvariant())
+        {
+            case "webhook":
+                <InotifyRelay.Web.Components.ProviderEditors.WebhookEditor
+                    Json="@target.ProviderConfigJson" JsonChanged="OnConfigJsonChanged" />
+                break;
+            case "jellyfin":
+                <InotifyRelay.Web.Components.ProviderEditors.JellyfinEditor
+                    Json="@target.ProviderConfigJson" JsonChanged="OnConfigJsonChanged" />
+                break;
+            case "plex":
+                <InotifyRelay.Web.Components.ProviderEditors.PlexEditor
+                    Json="@target.ProviderConfigJson" JsonChanged="OnConfigJsonChanged" />
+                break;
+            case "audiobookshelf":
+                <InotifyRelay.Web.Components.ProviderEditors.AudioBookshelfEditor
+                    Json="@target.ProviderConfigJson" JsonChanged="OnConfigJsonChanged" />
+                break;
+            case "grimmory":
+                <InotifyRelay.Web.Components.ProviderEditors.GrimmoryEditor
+                    Json="@target.ProviderConfigJson" JsonChanged="OnConfigJsonChanged" />
+                break;
+            default:
+                <p class="ir-muted">JSON shape depends on provider type. The default is pre-filled when the target is created.</p>
+                <InotifyRelay.Web.Components.Shared.CodeEditor
+                    @bind-Value="target.ProviderConfigJson" Language="json" Height="360" />
+                break;
+        }
     </div>
 
     <div class="ir-card">
@@ -124,6 +147,26 @@ else
                 <input type="number" min="0" step="100" @bind="target.CoalesceMs" />
             </div>
         </div>
+        @{
+            var rec = InotifyRelay.Web.Services.CoalesceRecommender.Recommend(target.ProviderType, target.ProviderConfigJson);
+            var hint = InotifyRelay.Web.Services.CoalesceRecommender.Explain(target.ProviderType, target.ProviderConfigJson);
+        }
+        @if (hint is not null)
+        {
+            <div style="margin-top:0.75rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap">
+                <span class="ir-muted" style="font-size:0.85rem">@hint</span>
+                @if (target.CoalesceMs != rec)
+                {
+                    <button class="btn btn-sm btn-secondary" type="button" @onclick="() => target.CoalesceMs = rec">
+                        Use @rec ms
+                    </button>
+                }
+                else
+                {
+                    <span class="ir-badge ok" style="font-size:0.72rem">matches recommendation</span>
+                }
+            </div>
+        }
     </div>
 
     <div class="ir-card">
@@ -160,6 +203,12 @@ else
 
     InotifyRelay.Web.Components.Shared.FolderPicker? _picker;
     Action<string>? _pickerCallback;
+
+    Task OnConfigJsonChanged(string newJson)
+    {
+        if (target is not null) target.ProviderConfigJson = newJson;
+        return Task.CompletedTask;
+    }
 
     void OpenPickerForFrom(MappingRow m)
     {

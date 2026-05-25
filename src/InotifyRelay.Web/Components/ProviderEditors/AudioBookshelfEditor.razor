@@ -1,0 +1,51 @@
+@inherits ProviderEditorBase<InotifyRelay.Providers.AudioBookshelf.AudioBookshelfConfig>
+
+<div class="ir-form-grid">
+    <div class="ir-form-row">
+        <div>
+            <label>Base URL</label>
+            <input @bind="Config.BaseUrl" @bind:after="FlushAsync" placeholder="http://audiobookshelf:13378" />
+        </div>
+        <div>
+            <label>API token</label>
+            <input @bind="Config.ApiToken" @bind:after="FlushAsync" type="password" placeholder="from Settings → Users → API Token" />
+        </div>
+    </div>
+
+    <div>
+        <label>Library</label>
+        <div style="display:flex;gap:0.5rem">
+            <select @bind="Config.LibraryId" @bind:after="FlushAsync"
+                    style="flex:1;background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                <option value="">(pick a library)</option>
+                @if (Libraries is not null)
+                {
+                    @foreach (var lib in Libraries)
+                    {
+                        <option value="@lib.Id">@lib.Name@(string.IsNullOrEmpty(lib.Kind) ? "" : $" — {lib.Kind}")</option>
+                    }
+                }
+                else if (!string.IsNullOrEmpty(Config.LibraryId))
+                {
+                    <option value="@Config.LibraryId">@Config.LibraryId</option>
+                }
+            </select>
+            <button class="btn btn-secondary" type="button" @onclick="FetchLibrariesAsync" disabled="@LibraryLoading">
+                @(LibraryLoading ? "Fetching…" : "Fetch libraries")
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(LibraryError))
+        {
+            <div class="alert-error" style="margin-top:0.5rem">@LibraryError</div>
+        }
+    </div>
+
+    <label style="display:flex;align-items:center;gap:0.4rem">
+        <input type="checkbox" @bind="Config.Force" @bind:after="FlushAsync" style="width:auto" />
+        Force scan (re-scan everything, ignoring "unchanged since last scan")
+    </label>
+</div>
+
+@code {
+    protected override string ProviderKey => "audiobookshelf";
+}

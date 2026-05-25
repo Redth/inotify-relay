@@ -1,6 +1,7 @@
 using InotifyRelay.Core.Providers;
 using InotifyRelay.Core.Templating;
 using InotifyRelay.Providers.AudioBookshelf;
+using InotifyRelay.Providers.Grimmory;
 using InotifyRelay.Providers.Jellyfin;
 using InotifyRelay.Providers.Plex;
 using InotifyRelay.Providers.Webhook;
@@ -24,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRelayProvider, JellyfinProvider>();
         services.AddSingleton<IRelayProvider, PlexProvider>();
         services.AddSingleton<IRelayProvider, AudioBookshelfProvider>();
+        services.AddSingleton<IRelayProvider, GrimmoryProvider>();
         return services;
     }
 }

@@ -19,30 +19,18 @@ public sealed class TargetService(AppDbContext db, ProviderCatalog catalog)
         var provider = catalog.Get(providerType) ?? throw new InvalidOperationException($"Unknown provider {providerType}");
         if (await db.Targets.AnyAsync(t => t.Name == name, ct))
             throw new DuplicateNameException($"A target named '{name}' already exists.");
+        var defaultCfg = JsonFormat.Serialize(provider.CreateDefaultConfig());
         var t = new TargetEntity
         {
             Name = name,
             ProviderType = providerType,
-            ProviderConfigJson = JsonFormat.Serialize(provider.CreateDefaultConfig()),
-            CoalesceMs = DefaultCoalesceMs(providerType),
+            ProviderConfigJson = defaultCfg,
+            CoalesceMs = CoalesceRecommender.Recommend(providerType, defaultCfg),
         };
         db.Targets.Add(t);
         await db.SaveChangesAsync(ct);
         return t;
     }
-
-    /// <summary>
-    /// Sensible default coalescing window per provider. Webhooks fire one HTTP request
-    /// per event by default; media-server rescans batch — a torrent finishing or rsync
-    /// landing dozens of files inside a folder should produce one scan, not dozens.
-    /// </summary>
-    private static int DefaultCoalesceMs(string providerType) => providerType.ToLowerInvariant() switch
-    {
-        "jellyfin"       => 5000,
-        "plex"           => 5000,
-        "audiobookshelf" => 5000,
-        _                => 0,
-    };
 
     public async Task SaveAsync(TargetEntity target, CancellationToken ct = default)
     {

@@ -1,0 +1,57 @@
+@inherits ProviderEditorBase<InotifyRelay.Providers.Grimmory.GrimmoryConfig>
+
+<div class="ir-form-grid">
+    <div>
+        <label>Base URL</label>
+        <input @bind="Config.BaseUrl" @bind:after="FlushAsync" placeholder="http://grimmory:6060" />
+    </div>
+
+    <div class="ir-form-row">
+        <div>
+            <label>Username</label>
+            <input @bind="Config.Username" @bind:after="FlushAsync" autocomplete="username" />
+        </div>
+        <div>
+            <label>Password</label>
+            <input @bind="Config.Password" @bind:after="FlushAsync" type="password" autocomplete="current-password" />
+        </div>
+    </div>
+
+    <small class="ir-muted">
+        Grimmory only supports username + password auth — a short-lived JWT is issued via
+        <code>POST /api/v1/auth/login</code> and cached in memory until it expires. There's no
+        static API token mechanism.
+    </small>
+
+    <div>
+        <label>Library</label>
+        <div style="display:flex;gap:0.5rem">
+            <select @bind="Config.LibraryId" @bind:after="FlushAsync"
+                    style="flex:1;background:#0a0e13;border:1px solid #1e2530;color:#e6edf3;border-radius:6px;padding:0.5rem">
+                <option value="">(pick a library)</option>
+                @if (Libraries is not null)
+                {
+                    @foreach (var lib in Libraries)
+                    {
+                        <option value="@lib.Id">@lib.Id — @lib.Name</option>
+                    }
+                }
+                else if (!string.IsNullOrEmpty(Config.LibraryId))
+                {
+                    <option value="@Config.LibraryId">@Config.LibraryId</option>
+                }
+            </select>
+            <button class="btn btn-secondary" type="button" @onclick="FetchLibrariesAsync" disabled="@LibraryLoading">
+                @(LibraryLoading ? "Fetching…" : "Fetch libraries")
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(LibraryError))
+        {
+            <div class="alert-error" style="margin-top:0.5rem">@LibraryError</div>
+        }
+    </div>
+</div>
+
+@code {
+    protected override string ProviderKey => "grimmory";
+}
