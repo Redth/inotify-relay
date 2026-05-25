@@ -133,41 +133,57 @@ public class LinuxInotifyWatcherTests
     public async Task RemoveWatchAsync_stops_further_events()
     {
         await using var h = await NewAsync();
-        var path = Path.Combine(h.TempDir, "first.txt");
-        File.WriteAllText(path, "x");
-        await h.AwaitEventAsync(c => c.Path == path && c.EventType == FileEventType.Created);
+        var first = Path.Combine(h.TempDir, "first.txt");
+        File.WriteAllText(first, "x");
+        await h.AwaitEventAsync(c => c.Path == first && c.EventType == FileEventType.Created);
+
+        // Drain any in-flight events for the first file — a single File.WriteAllText
+        // produces Created + Modified + ClosedWrite, but we've only consumed Created.
+        await h.CollectWithinAsync(TimeSpan.FromMilliseconds(100));
 
         await h.Watcher.RemoveWatchAsync("root", CancellationToken.None);
         await Task.Delay(50);
-        File.WriteAllText(Path.Combine(h.TempDir, "second.txt"), "y");
+        var second = Path.Combine(h.TempDir, "second.txt");
+        File.WriteAllText(second, "y");
 
         var bucket = await h.CollectWithinAsync(TimeSpan.FromMilliseconds(300));
-        Assert.Empty(bucket);
+        // No events for the second file should have arrived — the watch is gone.
+        Assert.DoesNotContain(bucket, c => c.Path == second);
     }
 
     [LinuxFact]
     public async Task Single_inotify_instance_serves_many_watched_directories()
     {
         // The whole reason this project exists: don't bleed inotify instances.
+        // Measure DELTA — CI runners may have unrelated inotify fds (test host,
+        // .NET runtime, etc.), so the absolute count varies. The property we
+        // care about is that OUR watcher adds exactly one regardless of how
+        // many directories it ends up watching.
+        var before = CountInotifyFds();
+
         await using var h = await NewAsync();
         for (var i = 0; i < 50; i++)
             Directory.CreateDirectory(Path.Combine(h.TempDir, $"sub-{i:D3}"));
-        // Give the watcher a moment to register dynamic adds.
         await Task.Delay(200);
 
+        var after = CountInotifyFds();
+        Assert.Equal(1, after - before);
+    }
+
+    private static int CountInotifyFds()
+    {
         var pid = Environment.ProcessId;
-        var fds = Directory.EnumerateFiles($"/proc/{pid}/fd").ToArray();
-        var inotifyFds = 0;
-        foreach (var fd in fds)
+        var count = 0;
+        foreach (var fd in Directory.EnumerateFiles($"/proc/{pid}/fd"))
         {
             try
             {
                 var link = new FileInfo(fd).LinkTarget;
                 if (link is not null && link.Contains("inotify", StringComparison.Ordinal))
-                    inotifyFds++;
+                    count++;
             }
             catch { /* fd may have closed mid-walk */ }
         }
-        Assert.Equal(1, inotifyFds);
+        return count;
     }
 }

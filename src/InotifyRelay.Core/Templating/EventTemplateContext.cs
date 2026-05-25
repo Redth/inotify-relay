@@ -20,11 +20,14 @@ public static class EventTemplateContext
     {
         var rawPath = change.Path;
         var rawSourceRoot = change.SourceRoot;
-        var rawDirectory = Path.GetDirectoryName(rawPath) ?? string.Empty;
+        // Use PathHelpers.GetDirectory — it preserves the input separator style.
+        // Path.GetDirectoryName always returns Windows separators on Windows, even
+        // for forward-slash inputs, which silently corrupts templated paths.
+        var rawDirectory = PathHelpers.GetDirectory(rawPath);
 
         var path = PathMapper.Apply(rawPath, pathMappings);
         var sourceRoot = PathMapper.Apply(rawSourceRoot, pathMappings);
-        var directory = Path.GetDirectoryName(path) ?? string.Empty;
+        var directory = PathHelpers.GetDirectory(path);
 
         // relativePath stays invariant — it's computed from the raw pair to remain
         // stable regardless of whether the source or target side gets remapped.
@@ -32,7 +35,7 @@ public static class EventTemplateContext
         var relativePath = rawPath.StartsWith(srcTrim, StringComparison.Ordinal)
             ? rawPath[srcTrim.Length..].TrimStart('/', '\\')
             : rawPath;
-        var relativeDirectory = Path.GetDirectoryName(relativePath) ?? string.Empty;
+        var relativeDirectory = PathHelpers.GetDirectory(relativePath);
 
         var filename = Path.GetFileName(rawPath);
         var name = Path.GetFileNameWithoutExtension(rawPath);

@@ -51,7 +51,7 @@ public static class RuleMatcher
         if (src.Recursive) return true;
 
         // Non-recursive: only events on direct children of the source root.
-        var parent = Path.GetDirectoryName(fullPath)?.TrimEnd('/', '\\') ?? "";
+        var parent = PathHelpers.GetDirectory(fullPath).TrimEnd('/', '\\');
         return parent.Equals(root, StringComparison.Ordinal);
     }
 

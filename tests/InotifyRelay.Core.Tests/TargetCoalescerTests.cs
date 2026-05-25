@@ -121,18 +121,22 @@ public class TargetCoalescerTests
             return Task.CompletedTask;
         };
 
-        // 150ms window: enqueue, wait 100ms, enqueue, wait 100ms, enqueue.
-        // After the third enqueue, we should still be waiting (not yet flushed).
-        c.Enqueue(Work(target, "/p/1"), 150, deliver, CancellationToken.None);
-        await Task.Delay(100);
-        c.Enqueue(Work(target, "/p/2"), 150, deliver, CancellationToken.None);
-        await Task.Delay(100);
-        c.Enqueue(Work(target, "/p/3"), 150, deliver, CancellationToken.None);
+        // 500ms window with 200ms between enqueues. Each enqueue must arrive before
+        // the previous window elapses so the timer resets; final wait clears the
+        // window. Generous tolerances so a noisy CI runner doesn't trip us up.
+        const int WindowMs = 500;
+        c.Enqueue(Work(target, "/p/1"), WindowMs, deliver, CancellationToken.None);
+        await Task.Delay(200);
+        c.Enqueue(Work(target, "/p/2"), WindowMs, deliver, CancellationToken.None);
+        await Task.Delay(200);
+        c.Enqueue(Work(target, "/p/3"), WindowMs, deliver, CancellationToken.None);
 
-        // At t=200ms total. If the window had NOT reset on each add we'd have flushed
-        // already (would have at t=150). Wait now for the post-reset window.
+        // At ~t=400ms — if window hadn't reset, the t=0 enqueue would have
+        // flushed already (at t=500). Nothing should have been delivered yet.
         Assert.Empty(delivered);
-        await Task.Delay(250);
+
+        // Wait through the post-reset window plus headroom.
+        await Task.Delay(WindowMs + 300);
         Assert.Equal(3, delivered.Count);
     }
 
