@@ -54,4 +54,43 @@ public class RuleMatcherTests
         var change = new FileSystemChange("/x/a", FileEventType.Created, false, DateTimeOffset.UtcNow, "/x");
         Assert.Empty(RuleMatcher.Match(change, new[] { rule }));
     }
+
+    private static RuleSnapshot MakeRuleWithSource(bool recursive, string sourcePath)
+        => new(Guid.NewGuid(), "r", true, FileEventType.All, 0, 0,
+            new[] { new SourceSnapshot(sourcePath, null, recursive) },
+            new List<TargetBindingSnapshot>());
+
+    [Fact]
+    public void Nonrecursive_source_matches_direct_child()
+    {
+        var rule = MakeRuleWithSource(recursive: false, "/movies");
+        var change = new FileSystemChange("/movies/a.mkv", FileEventType.ClosedWrite, false, DateTimeOffset.UtcNow, "/movies");
+        Assert.Single(RuleMatcher.Match(change, new[] { rule }));
+    }
+
+    [Fact]
+    public void Nonrecursive_source_does_not_match_grandchild()
+    {
+        var rule = MakeRuleWithSource(recursive: false, "/movies");
+        // Event happens deep under /movies — possible when a recursive watch sits
+        // on /movies for a different rule. The non-recursive rule must NOT match.
+        var change = new FileSystemChange("/movies/scifi/a.mkv", FileEventType.ClosedWrite, false, DateTimeOffset.UtcNow, "/movies");
+        Assert.Empty(RuleMatcher.Match(change, new[] { rule }));
+    }
+
+    [Fact]
+    public void Recursive_source_matches_grandchild()
+    {
+        var rule = MakeRuleWithSource(recursive: true, "/movies");
+        var change = new FileSystemChange("/movies/scifi/a.mkv", FileEventType.ClosedWrite, false, DateTimeOffset.UtcNow, "/movies");
+        Assert.Single(RuleMatcher.Match(change, new[] { rule }));
+    }
+
+    [Fact]
+    public void Nonrecursive_source_matches_event_on_source_root_itself()
+    {
+        var rule = MakeRuleWithSource(recursive: false, "/movies");
+        var change = new FileSystemChange("/movies", FileEventType.Attrib, true, DateTimeOffset.UtcNow, "/movies");
+        Assert.Single(RuleMatcher.Match(change, new[] { rule }));
+    }
 }

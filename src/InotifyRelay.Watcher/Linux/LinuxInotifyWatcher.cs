@@ -142,6 +142,12 @@ public sealed class LinuxInotifyWatcher : IFileSystemWatcher, IAsyncDisposable
             yield return c;
     }
 
+    public WatcherStats GetStats() => new(
+        Implementation: "linux-inotify",
+        IsRunning: _fd >= 0,
+        ActiveWatchDescriptors: _byWd.Count,
+        ActiveRoots: _roots.Count);
+
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);

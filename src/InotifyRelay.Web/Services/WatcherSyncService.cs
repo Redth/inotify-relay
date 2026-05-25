@@ -12,7 +12,7 @@ public sealed class WatcherSyncService(
     IConfigChangeNotifier notifier,
     ILogger<WatcherSyncService> logger) : BackgroundService
 {
-    private readonly Dictionary<string, FileEventType> _activeWatches = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> _activeWatches = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,31 +41,31 @@ public sealed class WatcherSyncService(
             var store = scope.ServiceProvider.GetRequiredService<IConfigStore>();
             var rules = await store.GetRulesAsync(ct);
 
-            // desired: rule.Id+":"+sourceIndex -> (path, recursive, mask)
-            var desired = new Dictionary<string, (string Path, bool Recursive, FileEventType Mask)>();
-            foreach (var r in rules)
-            {
-                if (!r.Enabled) continue;
-                for (var i = 0; i < r.Sources.Count; i++)
-                {
-                    var key = $"{r.Id}:{i}";
-                    desired[key] = (r.Sources[i].Path, r.Sources[i].Recursive, r.EventMask);
-                }
-            }
+            // Plan once across ALL rules — overlapping recursive sources collapse to
+            // their common ancestor, non-recursive sources sitting under a recursive
+            // ancestor are dropped (the ancestor's watch already delivers their events).
+            // Per-rule attribution happens at dispatch time in RuleMatcher.
+            var plan = WatchPlanner.Plan(rules);
+            // key the watch by its absolute path — natural and stable across re-sync
+            var desired = plan.ToDictionary(p => p.Path, p => p.Recursive, StringComparer.Ordinal);
 
-            // remove gone
             foreach (var key in _activeWatches.Keys.Except(desired.Keys).ToArray())
             {
                 await watcher.RemoveWatchAsync(key, ct);
                 _activeWatches.Remove(key);
             }
-            // add/update
-            foreach (var (key, def) in desired)
+            foreach (var (path, recursive) in desired)
             {
-                await watcher.AddOrUpdateWatchAsync(new WatchDefinition(key, def.Path, def.Recursive, def.Mask), ct);
-                _activeWatches[key] = def.Mask;
+                // We listen for every event type and let RuleMatcher do the per-rule
+                // mask filtering — a single watch may serve rules with different masks.
+                await watcher.AddOrUpdateWatchAsync(
+                    new WatchDefinition(path, path, recursive, FileEventType.All), ct);
+                _activeWatches[path] = recursive;
             }
-            logger.LogInformation("Watcher sync complete. Active watches: {Count}", _activeWatches.Count);
+            logger.LogInformation(
+                "Watcher sync complete. {Watches} consolidated watches from {Sources} rule sources.",
+                _activeWatches.Count,
+                rules.Where(r => r.Enabled).Sum(r => r.Sources.Count));
         }
         catch (Exception ex)
         {

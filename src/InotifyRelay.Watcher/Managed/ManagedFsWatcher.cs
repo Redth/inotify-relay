@@ -89,6 +89,12 @@ public sealed class ManagedFsWatcher : IFileSystemWatcher, IDisposable
         await foreach (var c in _channel.Reader.ReadAllAsync(ct)) yield return c;
     }
 
+    public WatcherStats GetStats() => new(
+        Implementation: "managed",
+        IsRunning: !_channel.Reader.Completion.IsCompleted,
+        ActiveWatchDescriptors: _roots.Count,
+        ActiveRoots: _roots.Count);
+
     private void Push(string rootPath, FileEventType mask, FileSystemChange c)
     {
         if ((mask & c.EventType) == 0) return;

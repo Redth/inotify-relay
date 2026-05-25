@@ -31,16 +31,21 @@ public sealed class EventProcessorService(
                     if (match.Rule.DebounceMs > 0 && !_debouncer.ShouldEmit(dbKey, TimeSpan.FromMilliseconds(match.Rule.DebounceMs)))
                         continue;
 
+                    // Rewrite SourceRoot from the consolidated watch root to the
+                    // matched rule's source path. Template variables like
+                    // {relativePath} stay relative to the rule, not the watch.
+                    var ruleChange = change with { SourceRoot = match.Source.Path };
+
                     var log = new EventLogEntity
                     {
                         RuleId = match.Rule.Id,
                         RuleName = match.Rule.Name,
-                        Path = change.Path,
-                        OldPath = change.OldPath,
-                        EventType = change.EventType.ToString(),
-                        IsDirectory = change.IsDirectory,
-                        SourceRoot = change.SourceRoot,
-                        Timestamp = change.Timestamp.UtcDateTime,
+                        Path = ruleChange.Path,
+                        OldPath = ruleChange.OldPath,
+                        EventType = ruleChange.EventType.ToString(),
+                        IsDirectory = ruleChange.IsDirectory,
+                        SourceRoot = ruleChange.SourceRoot,
+                        Timestamp = ruleChange.Timestamp.UtcDateTime,
                     };
                     db.EventLogs.Add(log);
                     await db.SaveChangesAsync(stoppingToken);
@@ -48,7 +53,7 @@ public sealed class EventProcessorService(
                     foreach (var binding in match.Rule.TargetBindings)
                     {
                         if (!binding.Enabled) continue;
-                        await queue.Writer.WriteAsync(new DeliveryWork(log.Id, change, match.Rule, binding), stoppingToken);
+                        await queue.Writer.WriteAsync(new DeliveryWork(log.Id, ruleChange, match.Rule, binding), stoppingToken);
                     }
                 }
                 if ((DateTime.UtcNow.Second & 31) == 0)

@@ -1,8 +1,11 @@
 @page "/"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using InotifyRelay.Core.Watching
 @using InotifyRelay.Data
+@using InotifyRelay.Web.Services
 @using Microsoft.EntityFrameworkCore
 @inject AppDbContext Db
+@inject IFileSystemWatcher Watcher
 
 <PageTitle>Dashboard — inotify-relay</PageTitle>
 
@@ -29,6 +32,63 @@
 </div>
 
 <div class="ir-card" style="margin-top:1.5rem">
+    <h2>Watcher status</h2>
+    <p class="ir-muted" style="margin-bottom:0.75rem; font-size:0.85rem">
+        Backend: <code>@stats.Implementation</code> · @(stats.IsRunning ? "running" : "stopped")
+    </p>
+    <div class="ir-stat-grid">
+        <div class="ir-stat">
+            <div class="ir-stat-label">Active watches</div>
+            <div class="ir-stat-value">@stats.ActiveWatchDescriptors.ToString("N0")</div>
+            <div class="ir-muted" style="font-size:0.78rem; margin-top:0.25rem">
+                @stats.ActiveRoots consolidated root@(stats.ActiveRoots == 1 ? "" : "s")
+            </div>
+        </div>
+        @if (limits.MaxUserWatches is int mw)
+        {
+            var ratio = mw == 0 ? 0d : (double)stats.ActiveWatchDescriptors / mw;
+            var badgeClass = ratio > 0.9 ? "bad" : ratio > 0.6 ? "muted" : "ok";
+            <div class="ir-stat">
+                <div class="ir-stat-label">max_user_watches</div>
+                <div class="ir-stat-value">@mw.ToString("N0")</div>
+                <div style="margin-top:0.3rem">
+                    <span class="ir-badge @badgeClass">@(ratio * 100d).ToString("F1")% in use</span>
+                </div>
+            </div>
+        }
+        @if (limits.MaxUserInstances is int mi)
+        {
+            <div class="ir-stat">
+                <div class="ir-stat-label">max_user_instances</div>
+                <div class="ir-stat-value">@mi.ToString("N0")</div>
+                <div class="ir-muted" style="font-size:0.78rem; margin-top:0.25rem">we use 1</div>
+            </div>
+        }
+        @if (limits.MaxQueuedEvents is int mq)
+        {
+            <div class="ir-stat">
+                <div class="ir-stat-label">max_queued_events</div>
+                <div class="ir-stat-value">@mq.ToString("N0")</div>
+                <div class="ir-muted" style="font-size:0.78rem; margin-top:0.25rem">per-instance kernel buffer</div>
+            </div>
+        }
+    </div>
+    @if (limits.MaxUserWatches is null && OperatingSystem.IsLinux())
+    {
+        <p class="ir-muted" style="font-size:0.82rem; margin-top:0.75rem">
+            Couldn't read <code>/proc/sys/fs/inotify/</code> — running unconfined under Docker exposes
+            these; if you see this on a real host, check filesystem permissions.
+        </p>
+    }
+    else if (!OperatingSystem.IsLinux())
+    {
+        <p class="ir-muted" style="font-size:0.82rem; margin-top:0.75rem">
+            Kernel inotify limits are Linux-only. Running on @System.Runtime.InteropServices.RuntimeInformation.OSDescription.
+        </p>
+    }
+</div>
+
+<div class="ir-card">
     <h2>Recent deliveries</h2>
     @if (recent.Count == 0)
     {
@@ -64,6 +124,8 @@
 @code {
     int enabledRules, totalRules, totalTargets, events1h, deliveries1h, failed1h;
     List<InotifyRelay.Data.Entities.DeliveryLogEntity> recent = new();
+    WatcherStats stats = new("unknown", false, 0, 0);
+    InotifySystemLimits limits = new(null, null, null);
 
     protected override async Task OnInitializedAsync()
     {
@@ -75,5 +137,7 @@
         deliveries1h = await Db.DeliveryLogs.CountAsync(d => d.Timestamp >= hourAgo);
         failed1h = await Db.DeliveryLogs.CountAsync(d => d.Timestamp >= hourAgo && !d.Success);
         recent = await Db.DeliveryLogs.OrderByDescending(d => d.Timestamp).Take(20).ToListAsync();
+        stats = Watcher.GetStats();
+        limits = InotifySystemLimits.Read();
     }
 }
