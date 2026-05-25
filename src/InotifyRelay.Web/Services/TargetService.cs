@@ -38,9 +38,10 @@ public sealed class TargetService(AppDbContext db, ProviderCatalog catalog)
     /// </summary>
     private static int DefaultCoalesceMs(string providerType) => providerType.ToLowerInvariant() switch
     {
-        "jellyfin" => 5000,
-        "plex"     => 5000,
-        _          => 0,
+        "jellyfin"       => 5000,
+        "plex"           => 5000,
+        "audiobookshelf" => 5000,
+        _                => 0,
     };
 
     public async Task SaveAsync(TargetEntity target, CancellationToken ct = default)

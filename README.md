@@ -35,7 +35,7 @@ P/Invoke layer that keeps **a single instance** for the entire process.
   configure the rewrite once on the target and every templated path variable
   flips automatically. Longest matching prefix wins; raw originals stay
   accessible as `{source.path}`, `{source.directory}`, `{source.sourceRoot}`.
-- Built-in providers: **Webhook**, **Jellyfin**, **Plex**.
+- Built-in providers: **Webhook**, **Jellyfin**, **Plex**, **Audiobookshelf**.
 - Plain templating with variable substitution + filters
   (`{path|replace:'/host':'/jellyfin'|lower}`).
 - Per-target retry policy with exponential backoff.
